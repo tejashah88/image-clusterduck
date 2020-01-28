@@ -85,28 +85,19 @@ def make_img_scatterplot(cv_img, color_mode, scale_factor=3):
 
 
 def make_pos_to_color_scatterplot(cv_img, color_mode, ch_index, scale_factor=3):
-    pos = []
-    color = []
-
-    converted_img = cv_img[color_mode]
-    rows, cols = converted_img.shape[:2]
     rgb_img = cv_img.RGB
-    rows, cols, depth = np.shape(converted_img)
+    converted_img = cv_img[color_mode]
+
+    rows, cols = converted_img.shape[:2]
     r_arr, c_arr = np.mgrid[0:rows, 0:cols]
+    channel_arr = converted_img[:, :, ch_index]
 
-    for r, c in zip(r_arr.flatten(), c_arr.flatten()):
-        color_conv = converted_img[r, c].tolist()
-        color_rgb = rgb_img[r, c].tolist()
+    color_arr = rgb_img.reshape(-1, 3)
+    pos_arr = np.vstack((r_arr.flatten(), c_arr.flatten(), channel_arr.flatten())).T
 
-        color_pixel = [r, c, color_conv[ch_index]]
-
-        pos += [color_pixel]
-        color += [color_rgb]
-
-    pos_arr = np.array(pos)
     pos_arr = pos_arr / np.array([ max(rows, cols), max(rows, cols), max(pos_arr[:, 2]) ])
     pos_arr = pos_arr * np.array([ scale_factor, scale_factor, scale_factor / 2 ])
-    color_arr = np.array(color) / 255
+    color_arr = color_arr / 255
 
     splot = gl.GLScatterPlotItem(
         pos=pos_arr, color=color_arr,
