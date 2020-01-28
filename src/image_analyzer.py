@@ -55,10 +55,16 @@ def make_image_item(title, img_data):
     # plt_widget.enableAutoRange()
     plt_widget.hideButtons()
 
+    orig_mouse_press_fn = img_item.mousePressEvent
     def getPos(event):
+        orig_mouse_press_fn(event)
+
         pixel_loc = event.pos().toPoint()
         x, y = pixel_loc.x(), pixel_loc.y()
-        print(x, y, img_data[y, x])
+        try:
+            print(x, y, img_data[y, x])
+        except:
+            print('could not access img_data pixel info')
 
     img_item.mousePressEvent = getPos
 
