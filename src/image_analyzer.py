@@ -21,7 +21,7 @@ main_area.setWindowTitle('Image Cluster Analysis')
 win = pg.GraphicsLayoutWidget()
 
 # A plot area (ViewBox + axes) for displaying the image
-def make_image_item(title, img_data):
+def make_image_item(title, img_data, enable_roi=False):
     # Create plot widget
     plt_widget = pg.PlotWidget()
 
@@ -36,22 +36,24 @@ def make_image_item(title, img_data):
     plt_widget.autoRange()
     plt_widget.invertY()
 
-    # Add rectangular ROI object with draggable handles on all four sides
-    height, width = img_data.shape[:2]
-    roi = pg.ROI([0, 0], [width, height])
-    roi.addScaleHandle([0.5, 1], [0.5, 0.5])
-    roi.addScaleHandle([1, 0.5], [0.5, 0.5])
-    plt_widget.addItem(roi)
-    roi.setZValue(10)
+    if enable_roi:
+        # Add rectangular ROI object with draggable handles on all four sides
+        height, width = img_data.shape[:2]
+        pen = pg.mkPen(color=(255, 0, 200), width=2)
+        roi = pg.ROI([0, 0], [width, height], pen=pen)
+        roi.handleSize = 10
 
-    plt_widget.setMouseEnabled(x=False, y=False)
-    plt_widget.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        roi.addScaleHandle([0.5, 1], [0.5, 0.5]).pen.setWidth(2)
+        roi.addScaleHandle([1, 0.5], [0.5, 0.5]).pen.setWidth(2)
+
+        plt_widget.addItem(roi)
+        roi.setZValue(10)
 
     plt_widget.setTitle(title)
     plt_widget.setFixedSize(400, 300)
 
-    # plt_widget.enableAutoRange()
-    plt_widget.hideButtons()
+    plt_widget.enableAutoRange()
+    # plt_widget.hideButtons()
 
     orig_mouse_press_fn = img_item.mousePressEvent
     def getPos(event):
@@ -143,6 +145,7 @@ def make_3d_plot(plot_3d, enable_axes=True, scale_factor=3):
 
     return glvw
 
+
 # Link the image plot axes together for consistent panning and zooming
 def setup_axes_links(leader_plot, follower_plots):
     for plot in follower_plots:
@@ -221,15 +224,16 @@ channels = {
 
 DEFAULT_INDEX = 0
 
-glvw_color_vis = make_3d_plot(make_img_scatterplot(input_img, color_mode))
-glvw_channel = make_3d_plot(make_pos_to_color_scatterplot(input_img, color_mode, DEFAULT_INDEX))
+orig_img_plot = make_image_item('Original', input_rgb, enable_roi=True)
 channel_plot = make_image_item(channels[color_mode][DEFAULT_INDEX], input_mod[:, :, DEFAULT_INDEX])
 
-pAll = make_image_item('Original', input_rgb)
+glvw_color_vis = make_3d_plot(make_img_scatterplot(input_img, color_mode))
+glvw_channel = make_3d_plot(make_pos_to_color_scatterplot(input_img, color_mode, DEFAULT_INDEX))
+
 # pGray = make_image_item('Gray', input_gray)
 
-setup_axes_links(pAll, [channel_plot])
-setup_roi_links(pAll, [channel_plot])
+setup_axes_links(orig_img_plot, [channel_plot])
+# setup_roi_links(pAll, [channel_plot])
 
 
 # Setup widgets according to given grid layout
@@ -237,7 +241,7 @@ layoutgb = QtGui.QGridLayout()
 
 win.setLayout(layoutgb)
 
-layoutgb.addWidget(pAll, 0, 0)
+layoutgb.addWidget(orig_img_plot, 0, 0)
 # layoutgb.addWidget(pGray, 0, 1)
 layoutgb.addWidget(glvw_color_vis, 1, 0)
 
