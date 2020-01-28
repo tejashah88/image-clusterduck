@@ -7,8 +7,9 @@ import pyqtgraph.opengl as gl
 
 from cv_img import CvImg
 
-pg.setConfigOption('background', 'w')
-pg.setConfigOption('foreground', 'k')
+# Set window for white blackgroud and black foreground
+# pg.setConfigOption('background', 'w')
+# pg.setConfigOption('foreground', 'k')
 
 # Interpret image data as row-major instead of col-major
 pg.setConfigOptions(imageAxisOrder='row-major')
@@ -249,7 +250,7 @@ def on_channel_view_change(ch_index):
 channel_cbox.currentIndexChanged.connect(on_channel_view_change)
 
 
-layoutgb.addWidget(channel_cbox, 2, 0)
+layoutgb.addWidget(channel_cbox, 0, 2)
 
 
 # Contrast/color control
