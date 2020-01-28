@@ -152,23 +152,10 @@ def setup_axes_links(leader_plot, follower_plots):
         plot.setXLink(leader_plot)
         plot.setYLink(leader_plot)
 
-# Link all ROI objects within all given plots for consistent ROI analysis
-def setup_roi_links(all_plots):
-    all_rois = []
-    for plot in all_plots:
-        all_rois += [plot.plotItem.items[1]]
 
-    def update_roi(src_roi):
-        for roi in all_rois:
-            if roi.pos() != src_roi.pos():
-                roi.setPos(src_roi.pos())
+color_mode = 'RGB'
 
-    for roi in all_rois:
-        roi.sigRegionChanged.connect(update_roi)
-
-color_mode = 'HSV'
-
-img = cv2.imread('./test-images/adorable-duck.jpg')
+img = cv2.imread('./test-images/starry-night.jpg')
 
 num_pixels = img.size
 target_num_pixels = 1000000
@@ -233,8 +220,6 @@ glvw_channel = make_3d_plot(make_pos_to_color_scatterplot(input_img, color_mode,
 # pGray = make_image_item('Gray', input_gray)
 
 setup_axes_links(orig_img_plot, [channel_plot])
-# setup_roi_links(pAll, [channel_plot])
-
 
 # Setup widgets according to given grid layout
 layoutgb = QtGui.QGridLayout()
@@ -261,12 +246,6 @@ def on_channel_view_change(ch_index):
     # Update the image
     img_item = channel_plot.plotItem.items[0]
     img_item.setImage(new_img)
-
-    # Update the ROI bounds
-    roi_item = channel_plot.plotItem.items[1]
-    height, width = new_img.shape[:2]
-    roi_item.setPos([0, 0])
-    roi_item.setSize([width, height])
 
     # Update the scatterplot
     new_scatter = make_pos_to_color_scatterplot(input_img, color_mode, ch_index)
