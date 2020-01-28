@@ -282,38 +282,15 @@ layoutgb.addWidget(channel_cbox, 2, 0)
 # layoutgb.addWidget(hist_lut_widget, 0, 3, 3, 1)
 
 
-
 # # build isocurves from smoothed data
 # iso.setData(pg.gaussianFilter(data, (2, 2)))
 
-# screen_size = app.desktop().screenGeometry()
-# finalWidth = screen_size.width()
-# finalHeight = screen_size.height() + 400
-# print(finalWidth, finalHeight)
-# win.setFixedSize(finalWidth, finalHeight)
+
 win.resize(layoutgb.sizeHint())
 main_area.setWidget(win)
 main_area.resize(layoutgb.sizeHint() + QtCore.QSize(10, 10))
 main_area.show()
 # main_area.showMaximized()
-
-
-
-# def update():
-#     ## update volume colors
-#     global phase, scatter_plot, d2
-#     s = -np.cos(d2*2+phase)
-#     color = np.empty((len(d2),4), dtype=np.float32)
-#     color[:,3] = np.clip(s * 0.1, 0, 1)
-#     color[:,0] = np.clip(s * 3.0, 0, 1)
-#     color[:,1] = np.clip(s * 1.0, 0, 1)
-#     color[:,2] = np.clip(s ** 3, 0, 1)
-#     scatter_plot.setData(color=color)
-#     phase -= 0.1
-
-# t = QtCore.QTimer()
-# t.timeout.connect(update)
-# t.start(0)
 
 
 # # Callbacks for handling user interaction
