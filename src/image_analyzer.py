@@ -36,12 +36,10 @@ def make_image_item(title, img_data):
     plt_widget.autoRange()
     plt_widget.invertY()
 
-    # Add rectangular ROI object
+    # Add rectangular ROI object with draggable handles on all four sides
     height, width = img_data.shape[:2]
-    roi = pg.ROI([width // 4, height // 4], [width // 2, height // 2])
-    roi.addScaleHandle([0.5, 0], [0.5, 0.5])
+    roi = pg.ROI([0, 0], [width, height])
     roi.addScaleHandle([0.5, 1], [0.5, 0.5])
-    roi.addScaleHandle([0, 0.5], [0.5, 0.5])
     roi.addScaleHandle([1, 0.5], [0.5, 0.5])
     plt_widget.addItem(roi)
     roi.setZValue(10)
