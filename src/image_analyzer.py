@@ -182,18 +182,6 @@ input_mod   = input_img[color_mode]
 
 print('Num pixels:', input_img.RGB.size)
 
-glvw_color_vis = make_3d_plot(make_img_scatterplot(input_img, color_mode))
-glvw_ch1 = make_3d_plot(make_pos_to_color_scatterplot(input_img, color_mode, 0))
-glvw_ch2 = make_3d_plot(make_pos_to_color_scatterplot(input_img, color_mode, 1))
-glvw_ch3 = make_3d_plot(make_pos_to_color_scatterplot(input_img, color_mode, 2))
-
-# # Custom ROI for selecting an image region
-# roi = pg.ROI([-8, 14], [6, 5])
-# roi.addScaleHandle([0.5, 1], [0.5, 0.5])
-# roi.addScaleHandle([0, 0.5], [0.5, 0.5])
-# p1.addItem(roi)
-# roi.setZValue(10)  # make sure ROI is drawn above image
-
 # # Isocurve drawing
 # iso = pg.IsocurveItem(level=0.8, pen='g')
 # iso.setParentItem(img)
@@ -228,14 +216,17 @@ channels = {
     'XYZ': ('X', 'Y', 'Z'),
 }
 
-ch1 = make_image_item(channels[color_mode][0], input_mod[:, :, 0])
-ch2 = make_image_item(channels[color_mode][1], input_mod[:, :, 1])
-ch3 = make_image_item(channels[color_mode][2], input_mod[:, :, 2])
-pAll = make_image_item('Original', input_rgb)
-pGray = make_image_item('Gray', input_gray)
+DEFAULT_INDEX = 0
 
-setup_axes_links(pAll, [pGray, ch1, ch2, ch3])
-setup_roi_links([pAll, pGray, ch1, ch2, ch3])
+glvw_color_vis = make_3d_plot(make_img_scatterplot(input_img, color_mode))
+glvw_channel = make_3d_plot(make_pos_to_color_scatterplot(input_img, color_mode, DEFAULT_INDEX))
+channel_plot = make_image_item(channels[color_mode][DEFAULT_INDEX], input_mod[:, :, DEFAULT_INDEX])
+
+pAll = make_image_item('Original', input_rgb)
+# pGray = make_image_item('Gray', input_gray)
+
+setup_axes_links(pAll, [channel_plot])
+setup_roi_links(pAll, [channel_plot])
 
 
 # Setup widgets according to given grid layout
@@ -247,15 +238,41 @@ layoutgb.addWidget(pAll, 0, 0)
 # layoutgb.addWidget(pGray, 0, 1)
 layoutgb.addWidget(glvw_color_vis, 1, 0)
 
-layoutgb.addWidget(ch1, 0, 1)
-layoutgb.addWidget(ch2, 0, 2)
-layoutgb.addWidget(ch3, 0, 3)
+layoutgb.addWidget(channel_plot, 0, 1)
+layoutgb.addWidget(glvw_channel, 1, 1)
 
-layoutgb.addWidget(glvw_ch1, 1, 1)
-layoutgb.addWidget(glvw_ch2, 1, 2)
-layoutgb.addWidget(glvw_ch3, 1, 3)
+channel_cbox = QtGui.QComboBox()
+channel_cbox.addItems(channels[color_mode])
 
-# print(layoutgb.itemAtPosition(0, 2).expandingDirections())
+def on_channel_view_change(ch_index):
+    new_title = channels[color_mode][ch_index]
+    new_img = input_mod[:, :, ch_index]
+
+    # Update the title
+    channel_plot.setTitle(new_title)
+
+    # Update the image
+    img_item = channel_plot.plotItem.items[0]
+    img_item.setImage(new_img)
+
+    # Update the ROI bounds
+    roi_item = channel_plot.plotItem.items[1]
+    height, width = new_img.shape[:2]
+    roi_item.setPos([0, 0])
+    roi_item.setSize([width, height])
+
+    # Update the scatterplot
+    new_scatter = make_pos_to_color_scatterplot(input_img, color_mode, ch_index)
+    glvw_channel.items[1].setData(
+        pos=new_scatter.pos, color=new_scatter.color,
+        size=new_scatter.size, pxMode=new_scatter.pxMode
+    )
+
+
+channel_cbox.currentIndexChanged.connect(on_channel_view_change)
+
+
+layoutgb.addWidget(channel_cbox, 2, 0)
 
 
 # Contrast/color control
