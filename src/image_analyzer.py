@@ -87,6 +87,7 @@ def make_pos_to_color_scatterplot(cv_img, color_mode, ch_index, scale_factor=3):
     color = []
 
     converted_img = cv_img[color_mode]
+    rows, cols = converted_img.shape[:2]
     rgb_img = cv_img.RGB
     rows, cols, depth = np.shape(converted_img)
     r_arr, c_arr = np.mgrid[0:rows, 0:cols]
@@ -100,7 +101,9 @@ def make_pos_to_color_scatterplot(cv_img, color_mode, ch_index, scale_factor=3):
         pos += [color_pixel]
         color += [color_rgb]
 
-    pos_arr = np.array(pos) / 255 * scale_factor
+    pos_arr = np.array(pos)
+    pos_arr = pos_arr / np.array([ max(rows, cols), max(rows, cols), max(pos_arr[:, 2]) ])
+    pos_arr = pos_arr * np.array([ scale_factor, scale_factor, scale_factor / 2 ])
     color_arr = np.array(color) / 255
 
     splot = gl.GLScatterPlotItem(
