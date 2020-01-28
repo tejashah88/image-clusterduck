@@ -161,8 +161,31 @@ def on_channel_view_change(ch_index):
 
 channel_cbox.currentIndexChanged.connect(on_channel_view_change)
 
+# Setup color space combo box
+color_space_cbox = QtGui.QComboBox()
+color_space_cbox.addItems(ALL_COLOR_SPACES.keys())
 
-layoutgb.addWidget(channel_cbox, 0, 2)
+def on_color_space_change(cspace_index):
+    pass
+    # COLOR_MODE = list(ALL_COLOR_SPACES.keys())[cspace_index]
+    # input_mod = input_img[COLOR_MODE]
+    # on_channel_view_change(cspace_index)
+
+
+color_space_cbox.currentIndexChanged.connect(on_color_space_change)
+
+# Setup widgets according to given grid layout
+layoutgb = QtGui.QGridLayout()
+
+win.setLayout(layoutgb)
+
+layoutgb.addWidget(orig_img_plot, 1, 0)
+layoutgb.addWidget(glvw_color_vis, 2, 0)
+
+layoutgb.addWidget(channel_plot, 1, 1)
+layoutgb.addWidget(glvw_channel, 2, 1)
+
+layoutgb.addWidget(color_space_cbox, 0, 0)
 layoutgb.addWidget(channel_cbox, 0, 1)
 
 
