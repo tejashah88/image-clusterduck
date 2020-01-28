@@ -18,17 +18,20 @@ pg.setConfigOptions(imageAxisOrder='row-major')
 
 app = pg.mkQApp()
 
-main_area = pg.QtGui.QScrollArea()
-main_area.setWindowTitle('Image Cluster Analysis')
+scroll_area = pg.QtGui.QScrollArea()
+scroll_area.setWindowTitle('Image Cluster Analysis')
 
-win = pg.GraphicsLayoutWidget()
+gl_layout = pg.GraphicsLayoutWidget()
 
-IMG_FILENAME = './test-images/bad_cluster_1.png'
-COLOR_MODE = 'RGB'
+IMG_FILENAME = './test-images/rainbow.jpg'
 MAX_PIXELS = 100 * 1000000
-DEFAULT_INDEX = 0
+DEFAULY_SCALE_FACTOR = 3
 
-ALL_COLOR_SPACES = {
+COLOR_MODE = 'RGB'
+CHANNEL_INDEX = 0
+
+ALL_COLOR_SPACES = [ 'RGB', 'YUV', 'YCrCb', 'LAB', 'LUV', 'HLS', 'HSV', 'XYZ' ]
+COLOR_SPACE_LABELS = {
     'RGB': ('Red', 'Green', 'Blue'),
     'YUV': ('Luma (Brightness)', 'U (blue projection)', 'V (red projection)'),
     'YCrCb': ('Luma (Brightness)', 'Cr (Red from Luma)', 'Cb (Blue from Luma)'),
@@ -40,8 +43,8 @@ ALL_COLOR_SPACES = {
 }
 
 
-def make_img_scatterplot(cv_img, COLOR_MODE, scale_factor=3):
-    pos_arr = cv_img[COLOR_MODE].reshape(-1, 3) / 255 * scale_factor
+def make_img_scatterplot(cv_img, color_mode, scale_factor=DEFAULY_SCALE_FACTOR):
+    pos_arr = cv_img[color_mode].reshape(-1, 3) / 255 * scale_factor
     color_arr = cv_img.RGB.reshape(-1, 3) / 255
 
     return gl.GLScatterPlotItem(
@@ -51,9 +54,9 @@ def make_img_scatterplot(cv_img, COLOR_MODE, scale_factor=3):
     )
 
 
-def make_pos_to_color_scatterplot(cv_img, COLOR_MODE, ch_index, scale_factor=3):
+def make_pos_to_color_scatterplot(cv_img, color_mode, ch_index, scale_factor=DEFAULY_SCALE_FACTOR):
     rgb_img = cv_img.RGB
-    converted_img = cv_img[COLOR_MODE]
+    converted_img = cv_img[color_mode]
 
     rows, cols = converted_img.shape[:2]
     r_arr, c_arr = np.mgrid[0:rows, 0:cols]
@@ -73,7 +76,7 @@ def make_pos_to_color_scatterplot(cv_img, COLOR_MODE, ch_index, scale_factor=3):
     )
 
 
-def make_pixelbox(num_pixels=1000000, scale_factor=3):
+def make_pixelbox(num_pixels=1000000, scale_factor=DEFAULY_SCALE_FACTOR):
     pos = np.random.random(size=(num_pixels, 3)) * (2 * scale_factor) - scale_factor
     color = np.random.random(size=(num_pixels, 4))
 
@@ -104,7 +107,6 @@ if resize_factor < 1:
 input_img   = CvImg.from_ndarray(img)
 input_rgb   = input_img.RGB
 input_gray  = input_img.GRAY
-input_mod   = input_img[COLOR_MODE]
 
 print('Original number of pixels:', num_pixels)
 
@@ -116,7 +118,7 @@ print('Original number of pixels:', num_pixels)
 # # Contrast/color control
 # hist = pg.HistogramLUTItem()
 # hist.setImageItem(img)
-# win.addItem(hist)
+# gl_layout.addItem(hist)
 
 # # Draggable line for setting isocurve level
 # isoLine = pg.InfiniteLine(angle=0, movable=True, pen='g')
@@ -126,34 +128,58 @@ print('Original number of pixels:', num_pixels)
 # isoLine.setZValue(1000) # bring iso line above contrast controls
 
 # # Another plot area for displaying ROI data
-# win.nextRow()
-# p2 = win.addPlot(colspan=2)
+# gl_layout.nextRow()
+# p2 = gl_layout.addPlot(colspan=2)
 # p2.setMaximumHeight(250)
 
 
 orig_img_plot = ImagePlotter(title='Original Image', img=input_rgb, enable_roi=True)
-channel_plot = ImagePlotter(title=ALL_COLOR_SPACES[COLOR_MODE][DEFAULT_INDEX], img=input_mod[:, :, DEFAULT_INDEX])
-
 glvw_color_vis = Plot3D(plot=make_img_scatterplot(input_img, COLOR_MODE))
-glvw_channel = Plot3D(plot=make_pos_to_color_scatterplot(input_img, COLOR_MODE, DEFAULT_INDEX))
+
+channel_plot = ImagePlotter(title=COLOR_SPACE_LABELS[COLOR_MODE][CHANNEL_INDEX], img=input_img[COLOR_MODE][:, :, CHANNEL_INDEX])
+glvw_channel = Plot3D(plot=make_pos_to_color_scatterplot(input_img, COLOR_MODE, CHANNEL_INDEX))
 
 setup_axes_links(orig_img_plot, [channel_plot])
 
+# Setup color space combo box
+color_space_cbox = QtGui.QComboBox()
+color_space_cbox.addItems(ALL_COLOR_SPACES)
+
+def on_color_space_change(cspace_index):
+    global COLOR_MODE
+    COLOR_MODE = ALL_COLOR_SPACES[cspace_index]
+
+    glvw_color_vis.set_plot(plot=make_img_scatterplot(input_img, COLOR_MODE))
+
+    channel_plot.setTitle(title=COLOR_SPACE_LABELS[COLOR_MODE][CHANNEL_INDEX])
+    channel_plot.set_image(img=input_img[COLOR_MODE][:, :, CHANNEL_INDEX])
+
+    glvw_channel.set_plot(plot=make_pos_to_color_scatterplot(input_img, COLOR_MODE, CHANNEL_INDEX))
+
+    channel_cbox.clear()
+    channel_cbox.addItems(COLOR_SPACE_LABELS[COLOR_MODE])
+    channel_cbox.setCurrentIndex(-1)
+    channel_cbox.setCurrentIndex(CHANNEL_INDEX)
+
+    on_channel_view_change(CHANNEL_INDEX)
+
+
+color_space_cbox.currentIndexChanged.connect(on_color_space_change)
+
 # Setup channel combo box
 channel_cbox = QtGui.QComboBox()
-channel_cbox.addItems(ALL_COLOR_SPACES[COLOR_MODE])
+channel_cbox.addItems(COLOR_SPACE_LABELS[COLOR_MODE])
 
 def on_channel_view_change(ch_index):
-    new_title = ALL_COLOR_SPACES[COLOR_MODE][ch_index]
-    new_img = input_mod[:, :, ch_index]
+    global COLOR_MODE
+    new_title = COLOR_SPACE_LABELS[COLOR_MODE][ch_index]
+    new_img = input_img[COLOR_MODE][:, :, ch_index]
 
     # Update the title
     channel_plot.setTitle(new_title)
 
     # Update the image
     channel_plot.set_image(new_img)
-    # img_item = plotItem.items[0]
-    # img_item.setImage(new_img)
 
     # Update the scatterplot
     new_scatter = make_pos_to_color_scatterplot(input_img, COLOR_MODE, ch_index)
@@ -161,50 +187,36 @@ def on_channel_view_change(ch_index):
 
 channel_cbox.currentIndexChanged.connect(on_channel_view_change)
 
-# Setup color space combo box
-color_space_cbox = QtGui.QComboBox()
-color_space_cbox.addItems(ALL_COLOR_SPACES.keys())
-
-def on_color_space_change(cspace_index):
-    pass
-    # COLOR_MODE = list(ALL_COLOR_SPACES.keys())[cspace_index]
-    # input_mod = input_img[COLOR_MODE]
-    # on_channel_view_change(cspace_index)
-
-
-color_space_cbox.currentIndexChanged.connect(on_color_space_change)
-
 # Setup widgets according to given grid layout
-layoutgb = QtGui.QGridLayout()
+grid_layout = QtGui.QGridLayout()
 
-win.setLayout(layoutgb)
+grid_layout.addWidget(color_space_cbox, 0, 0)
+grid_layout.addWidget(channel_cbox, 0, 1)
 
-layoutgb.addWidget(orig_img_plot, 1, 0)
-layoutgb.addWidget(glvw_color_vis, 2, 0)
+grid_layout.addWidget(orig_img_plot, 1, 0)
+grid_layout.addWidget(glvw_color_vis, 2, 0)
 
-layoutgb.addWidget(channel_plot, 1, 1)
-layoutgb.addWidget(glvw_channel, 2, 1)
+grid_layout.addWidget(channel_plot, 1, 1)
+grid_layout.addWidget(glvw_channel, 2, 1)
 
-layoutgb.addWidget(color_space_cbox, 0, 0)
-layoutgb.addWidget(channel_cbox, 0, 1)
-
+gl_layout.setLayout(grid_layout)
 
 # Contrast/color control
 # hist_lut_widget = pg.HistogramLUTWidget(image=pGray.plotItem.items[0])
 # # hist_lut_widget.setImageItem()
 # hist_lut_widget.autoHistogramRange()
-# layoutgb.addWidget(hist_lut_widget, 0, 3, 3, 1)
+# grid_layout.addWidget(hist_lut_widget, 0, 3, 3, 1)
 
 
 # # build isocurves from smoothed data
 # iso.setData(pg.gaussianFilter(data, (2, 2)))
 
 
-win.resize(layoutgb.sizeHint())
-main_area.setWidget(win)
-main_area.resize(layoutgb.sizeHint() + QtCore.QSize(10, 10))
-main_area.show()
-# main_area.showMaximized()
+gl_layout.resize(grid_layout.sizeHint())
+scroll_area.setWidget(gl_layout)
+scroll_area.resize(grid_layout.sizeHint() + QtCore.QSize(10, 10))
+scroll_area.show()
+# scroll_area.showMaximized()
 
 
 # # Callbacks for handling user interaction

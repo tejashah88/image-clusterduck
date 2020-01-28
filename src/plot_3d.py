@@ -1,8 +1,10 @@
 from pyqtgraph.Qt import QtGui
 import pyqtgraph.opengl as gl
 
+DEFAULT_AXIS_LENGTH = 3
+
 class Plot3D(gl.GLViewWidget):
-    def __init__(self, size=(600, 450), plot=None, enable_axes=True, axis_length=3):
+    def __init__(self, size=(600, 450), plot=None, enable_axes=True, axis_length=DEFAULT_AXIS_LENGTH):
         # Create and initialize 3D plotting widget
         super().__init__()
 
@@ -21,11 +23,11 @@ class Plot3D(gl.GLViewWidget):
             self.set_plot(plot)
 
 
-    def set_plot(self, plt):
+    def set_plot(self, plot):
         if self.plt_item is not None:
             self.removeItem(self.plt_item)
 
-        self.plt_item = plt
+        self.plt_item = plot
         self.addItem(self.plt_item)
 
 
