@@ -18,12 +18,11 @@ pg.setConfigOptions(imageAxisOrder='row-major')
 
 app = pg.mkQApp()
 
-scroll_area = pg.QtGui.QScrollArea()
-scroll_area.setWindowTitle('Image Cluster Analysis')
+gl_layout = pg.GraphicsWindow()
+gl_layout.setWindowTitle('Image Cluster Analysis')
 
-gl_layout = pg.GraphicsLayoutWidget()
 
-IMG_FILENAME = './test-images/rainbow.jpg'
+IMG_FILENAME = './test-images/starry-night.jpg'
 MAX_PIXELS = 100 * 1000000
 DEFAULY_SCALE_FACTOR = 3
 
@@ -95,6 +94,10 @@ def setup_axes_links(leader_plot, follower_plots):
 
 
 img = cv2.imread(IMG_FILENAME)
+if img is None:
+    print(f'Error: Unable to load image from {IMG_FILENAME}')
+    exit(-1)
+
 height, width = img.shape[:2]
 num_pixels = width * height
 resize_factor = 1 / ( (num_pixels / MAX_PIXELS) ** 0.5 )
@@ -109,28 +112,6 @@ input_rgb   = input_img.RGB
 input_gray  = input_img.GRAY
 
 print('Original number of pixels:', num_pixels)
-
-# # Isocurve drawing
-# iso = pg.IsocurveItem(level=0.8, pen='g')
-# iso.setParentItem(img)
-# iso.setZValue(5)
-
-# # Contrast/color control
-# hist = pg.HistogramLUTItem()
-# hist.setImageItem(img)
-# gl_layout.addItem(hist)
-
-# # Draggable line for setting isocurve level
-# isoLine = pg.InfiniteLine(angle=0, movable=True, pen='g')
-# hist.vb.addItem(isoLine)
-# hist.vb.setMouseEnabled(y=False) # makes user interaction a little easier
-# isoLine.setValue(0.8)
-# isoLine.setZValue(1000) # bring iso line above contrast controls
-
-# # Another plot area for displaying ROI data
-# gl_layout.nextRow()
-# p2 = gl_layout.addPlot(colspan=2)
-# p2.setMaximumHeight(250)
 
 
 orig_img_plot = ImagePlotter(title='Original Image', img=input_rgb, enable_roi=True)
@@ -201,38 +182,10 @@ grid_layout.addWidget(glvw_channel, 2, 1)
 
 gl_layout.setLayout(grid_layout)
 
-# Contrast/color control
-# hist_lut_widget = pg.HistogramLUTWidget(image=pGray.plotItem.items[0])
-# # hist_lut_widget.setImageItem()
-# hist_lut_widget.autoHistogramRange()
-# grid_layout.addWidget(hist_lut_widget, 0, 3, 3, 1)
 
+gl_layout.resize(grid_layout.sizeHint() + QtCore.QSize(10, 10))
+gl_layout.show()
 
-# # build isocurves from smoothed data
-# iso.setData(pg.gaussianFilter(data, (2, 2)))
-
-
-gl_layout.resize(grid_layout.sizeHint())
-scroll_area.setWidget(gl_layout)
-scroll_area.resize(grid_layout.sizeHint() + QtCore.QSize(10, 10))
-scroll_area.show()
-# scroll_area.showMaximized()
-
-
-# # Callbacks for handling user interaction
-# def updatePlot():
-#     global img, roi, data, p2
-#     selected = roi.getArrayRegion(data, img)
-#     p2.plot(selected.mean(axis=0), clear=True)
-
-# roi.sigRegionChanged.connect(updatePlot)
-# updatePlot()
-
-# def updateIsocurve():
-#     global isoLine, iso
-#     iso.setLevel(isoLine.value())
-
-# isoLine.sigDragged.connect(updateIsocurve)
 
 ## Start Qt event loop unless running in interactive mode.
 if __name__ == '__main__':
