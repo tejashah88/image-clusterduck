@@ -9,6 +9,9 @@ class ImagePlotter(pg.PlotWidget):
         # Create and initialize plotting widget
         super().__init__()
 
+        # Always zoom view whenever image is changed
+        self.enableAutoRange()
+
         # Create vars for the image and ROI items
         self.img_item = None
         self.roi_item = None
@@ -41,10 +44,8 @@ class ImagePlotter(pg.PlotWidget):
         self.img_item = pg.ImageItem(image=self.img)
         self.addItem(self.img_item)
 
-        # Zoom plot to fit image
-        self.autoRange()
+        # Flip image to match with image coordinates
         self.invertY()
-        self.enableAutoRange()
 
         # On click on the image, emit the pixel location and value as an event
         orig_mouse_press_fn = self.img_item.mousePressEvent
@@ -62,6 +63,16 @@ class ImagePlotter(pg.PlotWidget):
 
         self.img_item.mousePressEvent = get_pixel_at_pos
 
+        if self.roi_enabled:
+            self.roi_item.setPos([0, 0])
+            height, width = self.img.shape[:2]
+            self.roi_item.setSize([width, height])
+
+
+    @property
+    def roi_enabled(self):
+        return self.roi_item is not None
+
 
     def enable_roi_rect(self):
         if self.roi_item is None:
@@ -71,6 +82,7 @@ class ImagePlotter(pg.PlotWidget):
             self.roi_item = pg.ROI([0, 0], [width, height], pen=pen)
             self.roi_item.handleSize = HANDLE_SIZE
 
+            # Add image scaler handles
             self.roi_item.addScaleHandle([0.5, 1], [0.5, 0.5]).pen.setWidth(ROI_PEN_WIDTH)
             self.roi_item.addScaleHandle([1, 0.5], [0.5, 0.5]).pen.setWidth(ROI_PEN_WIDTH)
 
