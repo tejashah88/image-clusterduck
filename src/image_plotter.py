@@ -9,9 +9,6 @@ class ImagePlotter(pg.PlotWidget):
         # Create and initialize plotting widget
         super().__init__()
 
-        # Always zoom view whenever image is changed
-        self.enableAutoRange()
-
         # Create vars for the image and ROI items
         self.img_item = None
         self.roi_item = None
