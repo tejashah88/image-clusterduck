@@ -57,7 +57,7 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, scale_
     channel_arr = converted_img[:, :, ch_index]
 
     scaled_dim = scale_factor / max(rows, cols)
-    scaled_z = (scale_factor / 2) / 255
+    scaled_z = 2 / 255
 
     row_array = (r_arr.flatten() - rows // 2) * scaled_dim
     col_array = (c_arr.flatten() - cols // 2) * scaled_dim
@@ -164,7 +164,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.glvw_color_vis = Plot3D(plot=img_scatterplot(self.cv_img, self.color_mode))
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
-        self.glvw_channel_vis = Plot3D(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index))
+        self.glvw_channel_vis = Plot3D(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index), enable_axes=False)
 
         self.cropped_img_plot = ImagePlotter(title='Cropped Image', img=self.cv_img.RGB)
 
@@ -182,7 +182,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
         # Setup 'apply crop' checkbox
-        self.apply_crop_box = QtGui.QCheckBox('Apply Crop')
+        self.apply_crop_box = QtGui.QCheckBox('Apply Cropping')
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
 
@@ -198,16 +198,17 @@ class MyWindow(pg.GraphicsLayoutWidget):
         grid_layout.addWidget(self.cropped_img_plot, 0, 2)
 
         sub_grid_layout = QtGui.QGridLayout()
+
         sub_grid_layout.addWidget(QtGui.QLabel('Color Space:'), 0, 0)
         sub_grid_layout.addWidget(self.color_space_cbox, 0, 1)
         sub_grid_layout.addWidget(QtGui.QLabel('Channel:'), 1, 0)
         sub_grid_layout.addWidget(self.channel_cbox, 1, 1)
+
         sub_grid_layout.addWidget(self.apply_crop_box, 2, 0)
         sub_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
 
         options_widget = QtGui.QWidget()
         options_widget.setLayout(sub_grid_layout)
-
 
         grid_layout.addWidget(options_widget, 1, 2)
 
