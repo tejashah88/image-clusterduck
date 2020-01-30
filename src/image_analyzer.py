@@ -53,12 +53,16 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, scale_
     converted_img = converted_img[y_min:y_max, x_min:x_max]
 
     rows, cols = converted_img.shape[:2]
-    r_arr, c_arr = np.mgrid[0:rows, 0:cols]
+    c_arr, r_arr = np.meshgrid(np.arange(cols), np.arange(rows))
     channel_arr = converted_img[:, :, ch_index]
 
-    pos_arr = np.vstack((r_arr.flatten(), c_arr.flatten(), channel_arr.flatten())).T
-    pos_arr = pos_arr / np.array([ max(rows, cols), max(rows, cols), max(pos_arr[:, 2]) ])
-    pos_arr = pos_arr * np.array([ scale_factor, scale_factor, scale_factor / 2 ])
+    scaled_dim = scale_factor / max(rows, cols)
+    scaled_z = (scale_factor / 2) / 255
+
+    row_array = (r_arr.flatten() - rows // 2) * scaled_dim
+    col_array = (c_arr.flatten() - cols // 2) * scaled_dim
+    ch_array = channel_arr.flatten() * scaled_z
+    pos_arr = np.vstack( (row_array, col_array, ch_array) ).T
 
     color_arr = rgb_img.reshape(-1, 3) / 255
 
