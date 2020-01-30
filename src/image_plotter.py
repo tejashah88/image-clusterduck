@@ -44,6 +44,9 @@ class ImagePlotter(pg.PlotWidget):
         # Resize the plot so that it fits the whole image
         self.autoRange()
 
+        # Do not automatically set the range of the image to prevent ROI from messing with it
+        self.disableAutoRange()
+
         # Flip image to match with image coordinates
         self.invertY()
 
