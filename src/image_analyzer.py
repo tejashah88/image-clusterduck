@@ -74,18 +74,6 @@ def make_pos_to_color_scatterplot(cv_img, color_mode, ch_index, scale_factor=DEF
         glOptions='opaque'
     )
 
-
-def make_pixelbox(num_pixels=1000000, scale_factor=DEFAULY_SCALE_FACTOR):
-    pos = np.random.random(size=(num_pixels, 3)) * (2 * scale_factor) - scale_factor
-    color = np.random.random(size=(num_pixels, 4))
-
-    return gl.GLScatterPlotItem(
-        pos=pos, color=color,
-        size=1, pxMode=True,
-        glOptions='opaque'
-    )
-
-
 # Link the image plot axes together for consistent panning and zooming
 def setup_axes_links(leader_plot, follower_plots):
     for plot in follower_plots:
