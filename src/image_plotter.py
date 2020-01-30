@@ -44,6 +44,9 @@ class ImagePlotter(pg.PlotWidget):
         self.img_item = pg.ImageItem(image=self.img)
         self.addItem(self.img_item)
 
+        # Resize the plot so that it fits the whole image
+        self.autoRange()
+
         # Flip image to match with image coordinates
         self.invertY()
 

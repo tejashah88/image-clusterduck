@@ -11,13 +11,26 @@ from constants import ALL_COLOR_SPACES, COLOR_SPACE_LABELS
 from cv_img import CvImg
 from image_plotter import ImagePlotter
 from plot_3d import Plot3D
+from gui_busy_lock import GuiBusyLock
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
 
-def img_scatterplot(cv_img, color_mode, scale_factor=3):
-    pos_arr = cv_img[color_mode].reshape(-1, 3) / 255 * scale_factor
-    color_arr = cv_img.RGB.reshape(-1, 3) / 255
+def img_scatterplot(cv_img, color_mode, crop_bounds=None, scale_factor=3):
+    rgb_img = cv_img.RGB
+    converted_img = cv_img[color_mode]
+
+    if crop_bounds is not None:
+        x_min, y_min, x_max, y_max = crop_bounds
+    else:
+        height, width = rgb_img.shape[:2]
+        x_min, y_min, x_max, y_max = (0, 0, width, height)
+
+    rgb_img = rgb_img[y_min:y_max, x_min:x_max]
+    converted_img = converted_img[y_min:y_max, x_min:x_max]
+
+    pos_arr = converted_img.reshape(-1, 3) / 255 * scale_factor
+    color_arr = rgb_img.reshape(-1, 3) / 255
 
     return gl.GLScatterPlotItem(
         pos=pos_arr, color=color_arr,
@@ -26,9 +39,18 @@ def img_scatterplot(cv_img, color_mode, scale_factor=3):
     )
 
 
-def pos_color_scatterplot(cv_img, color_mode, ch_index, scale_factor=3):
+def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, scale_factor=3):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
+
+    if crop_bounds is not None:
+        x_min, y_min, x_max, y_max = crop_bounds
+    else:
+        height, width = rgb_img.shape[:2]
+        x_min, y_min, x_max, y_max = (0, 0, width, height)
+
+    rgb_img = rgb_img[y_min:y_max, x_min:x_max]
+    converted_img = converted_img[y_min:y_max, x_min:x_max]
 
     rows, cols = converted_img.shape[:2]
     r_arr, c_arr = np.mgrid[0:rows, 0:cols]
@@ -55,6 +77,7 @@ def setup_axes_links(leader_plot, follower_plots):
 # Interpret image data as row-major instead of col-major
 pg.setConfigOptions(imageAxisOrder='row-major')
 
+
 class MyWindow(pg.GraphicsLayoutWidget):
     def __init__(self):
         super().__init__()
@@ -73,6 +96,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.statusbar = None
 
         self.loading = False
+
+        self.apply_crop = False
 
 
     @property
@@ -102,9 +127,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     def load_image(self, img_path, max_pixels=1000000):
-        with pg.BusyCursor():
-            self.is_loading(True)
-
+        with GuiBusyLock(self):
             input_img = cv2.imread(img_path)
 
             if input_img is None:
@@ -126,21 +149,22 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 self.orig_img_plot.set_image(self.cv_img.RGB)
                 self.glvw_color_vis.set_plot(img_scatterplot(self.cv_img, self.color_mode))
                 self.on_color_space_change(self.cs_index)
-                self.on_channel_view_change(self.ch_index)
-
-        self.is_loading(False)
 
 
     def setup_gui(self):
         if self.cv_img is None:
             raise Exception('Error: Image has not been loaded yet! Please call load_image() before calling setup_gui()')
 
+        # Setup main plots
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_roi=True)
         self.glvw_color_vis = Plot3D(plot=img_scatterplot(self.cv_img, self.color_mode))
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
         self.glvw_channel_vis = Plot3D(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index))
 
+        self.cropped_img_plot = ImagePlotter(title='Cropped Image', img=self.cv_img.RGB)
+
+        self.orig_img_plot.roi_item.sigRegionChanged.connect(self.on_crop_img_by_roi)
         setup_axes_links(self.orig_img_plot, [self.channel_plot])
 
         # Setup color space combo box
@@ -153,11 +177,17 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
+        # Setup 'apply crop' checkbox
+        self.apply_crop_box = QtGui.QCheckBox('Apply Crop')
+        self.apply_crop_box.setChecked(self.apply_crop)
+        self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
+
         # Setup widgets according to given grid layout
         grid_layout = QtGui.QGridLayout()
 
         grid_layout.addWidget(self.color_space_cbox, 0, 0)
         grid_layout.addWidget(self.channel_cbox, 0, 1)
+        grid_layout.addWidget(self.apply_crop_box, 0, 2)
 
         grid_layout.addWidget(self.orig_img_plot, 1, 0)
         grid_layout.addWidget(self.glvw_color_vis, 2, 0)
@@ -165,17 +195,11 @@ class MyWindow(pg.GraphicsLayoutWidget):
         grid_layout.addWidget(self.channel_plot, 1, 1)
         grid_layout.addWidget(self.glvw_channel_vis, 2, 1)
 
+        grid_layout.addWidget(self.cropped_img_plot, 1, 2)
+
         # Set the layout and resize the window accordingly
         self.setLayout(grid_layout)
         self.resize(grid_layout.sizeHint() + QtCore.QSize(10, 30))
-
-
-    def is_loading(self, val):
-        self.loading = val
-        if self.loading:
-            self.setWindowModality(QtCore.Qt.ApplicationModal)
-        else:
-            self.setWindowModality(QtCore.Qt.NonModal)
 
 
     def bind_to_main_window(self, main_window):
@@ -198,33 +222,55 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     def on_color_space_change(self, cspace_index):
-        self.cs_index = cspace_index
+        with GuiBusyLock(self):
+            self.cs_index = cspace_index
 
-        self.glvw_color_vis.set_plot(plot=img_scatterplot(self.cv_img, self.color_mode))
+            self.glvw_color_vis.set_plot(plot=img_scatterplot(self.cv_img, self.color_mode))
 
-        self.channel_plot.setTitle(title=self.channel_mode)
-        self.channel_plot.set_image(img=self.curr_image_slice)
+            self.channel_plot.setTitle(title=self.channel_mode)
+            self.channel_plot.set_image(img=self.curr_image_slice)
 
-        self.glvw_channel_vis.set_plot(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index))
+            self.glvw_channel_vis.set_plot(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index))
 
-        self.channel_cbox.clear()
-        self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
+            self.channel_cbox.clear()
+            self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
 
-        self.on_channel_view_change(self.ch_index)
+            self.on_channel_view_change(self.ch_index)
+
 
     def on_channel_view_change(self, ch_index):
-        new_title = COLOR_SPACE_LABELS[self.color_mode][ch_index]
-        new_img = self.cv_img[self.color_mode][:, :, ch_index]
+        with GuiBusyLock(self):
+            self.ch_index = ch_index
 
-        # Update the title
-        self.channel_plot.setTitle(new_title)
+            # Update the title
+            self.channel_plot.setTitle(self.channel_mode)
 
-        # Update the image
-        self.channel_plot.set_image(new_img)
+            # Update the image
+            self.channel_plot.set_image(self.curr_image_slice)
 
-        # Update the scatterplot
-        new_scatter = pos_color_scatterplot(self.cv_img, self.color_mode, ch_index)
-        self.glvw_channel_vis.plt_item.setData(pos=new_scatter.pos, color=new_scatter.color)
+            # Update the scatterplot
+            self.on_apply_crop_toggle(self.apply_crop_box.isChecked())
+
+
+    def on_apply_crop_toggle(self, should_apply_crop):
+        self.apply_crop = should_apply_crop
+        self.orig_img_plot.roi_item.sigRegionChanged.emit(self.orig_img_plot.roi_item)
+
+        if not self.apply_crop:
+            self.cropped_img_plot.set_image(self.cv_img.RGB)
+            self.glvw_color_vis.set_plot(plot=img_scatterplot(self.cv_img, self.color_mode))
+
+    def on_crop_img_by_roi(self, roi):
+        if self.apply_crop:
+            height, width = self.cv_img.RGB.shape[:2]
+            x, y, w, h = roi.parentBounds().toAlignedRect().getRect()
+            x_min, y_min = max(x, 0), max(y, 0)
+            x_max, y_max = min(x + w, width), min(y + h, height)
+            bounds = (x_min, y_min, x_max, y_max)
+
+            self.cropped_img_plot.set_image(self.cv_img.RGB[y_min:y_max, x_min:x_max])
+            self.glvw_color_vis.set_plot(plot=img_scatterplot(self.cv_img, self.color_mode, crop_bounds=bounds))
+            self.glvw_channel_vis.set_plot(pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=bounds))
 
 
     def setup_menubar(self, main_window):
@@ -232,7 +278,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         file_menu = self.menubar.addMenu('File')
         edit_menu = self.menubar.addMenu('Edit')
         view_menu = self.menubar.addMenu('View')
-        search_menu = self.menubar.addMenu('Search')
         tools_menu = self.menubar.addMenu('Tools')
         help_menu = self.menubar.addMenu('Help')
 
