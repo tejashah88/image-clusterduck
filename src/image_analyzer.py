@@ -12,7 +12,7 @@ from cv_img import CvImg
 from image_plotter import ImagePlotter
 from plot_3d import Plot3D
 
-DEFAULT_IMG_FILENAME = './test-images/messi.jpg'
+DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
 
 def make_img_scatterplot(cv_img, color_mode, scale_factor=3):
@@ -34,12 +34,11 @@ def make_pos_to_color_scatterplot(cv_img, color_mode, ch_index, scale_factor=3):
     r_arr, c_arr = np.mgrid[0:rows, 0:cols]
     channel_arr = converted_img[:, :, ch_index]
 
-    color_arr = rgb_img.reshape(-1, 3)
     pos_arr = np.vstack((r_arr.flatten(), c_arr.flatten(), channel_arr.flatten())).T
-
     pos_arr = pos_arr / np.array([ max(rows, cols), max(rows, cols), max(pos_arr[:, 2]) ])
     pos_arr = pos_arr * np.array([ scale_factor, scale_factor, scale_factor / 2 ])
-    color_arr = color_arr / 255
+
+    color_arr = rgb_img.reshape(-1, 3) / 255
 
     return gl.GLScatterPlotItem(
         pos=pos_arr, color=color_arr,
