@@ -85,9 +85,11 @@ class ImagePlotter(pg.PlotWidget):
             self.roi_item = pg.ROI([0, 0], [width, height], pen=pen)
             self.roi_item.handleSize = HANDLE_SIZE
 
-            # Add image scaler handles
-            self.roi_item.addScaleHandle([0.5, 1], [0.5, 0.5]).pen.setWidth(ROI_PEN_WIDTH)
-            self.roi_item.addScaleHandle([1, 0.5], [0.5, 0.5]).pen.setWidth(ROI_PEN_WIDTH)
+            # Add image scale handles on all 4 corners
+            self.roi_item.addScaleHandle([1, 1], [0, 0]).pen.setWidth(ROI_PEN_WIDTH)
+            self.roi_item.addScaleHandle([1, 0], [0, 1]).pen.setWidth(ROI_PEN_WIDTH)
+            self.roi_item.addScaleHandle([0, 1], [1, 0]).pen.setWidth(ROI_PEN_WIDTH)
+            self.roi_item.addScaleHandle([0, 0], [1, 1]).pen.setWidth(ROI_PEN_WIDTH)
 
             self.addItem(self.roi_item)
             self.roi_item.setZValue(10)
