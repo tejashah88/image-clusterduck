@@ -13,7 +13,6 @@ class Plot3D(gl.GLViewWidget):
         self.plt_item = None
 
         # Setup the title and plot size
-        # self.setTitle(title)
         self.setFixedSize(*size)
 
         if enable_axes:

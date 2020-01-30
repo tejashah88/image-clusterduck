@@ -39,7 +39,7 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, scale_factor=3):
     )
 
 
-def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, scale_factor=3):
+def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, scale_factor=5):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -189,17 +189,27 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Setup widgets according to given grid layout
         grid_layout = QtGui.QGridLayout()
 
-        grid_layout.addWidget(self.color_space_cbox, 0, 0)
-        grid_layout.addWidget(self.channel_cbox, 0, 1)
-        grid_layout.addWidget(self.apply_crop_box, 0, 2)
+        grid_layout.addWidget(self.orig_img_plot, 0, 0)
+        grid_layout.addWidget(self.glvw_color_vis, 1, 0)
 
-        grid_layout.addWidget(self.orig_img_plot, 1, 0)
-        grid_layout.addWidget(self.glvw_color_vis, 2, 0)
+        grid_layout.addWidget(self.channel_plot, 0, 1)
+        grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
 
-        grid_layout.addWidget(self.channel_plot, 1, 1)
-        grid_layout.addWidget(self.glvw_channel_vis, 2, 1)
+        grid_layout.addWidget(self.cropped_img_plot, 0, 2)
 
-        grid_layout.addWidget(self.cropped_img_plot, 1, 2)
+        sub_grid_layout = QtGui.QGridLayout()
+        sub_grid_layout.addWidget(QtGui.QLabel('Color Space:'), 0, 0)
+        sub_grid_layout.addWidget(self.color_space_cbox, 0, 1)
+        sub_grid_layout.addWidget(QtGui.QLabel('Channel:'), 1, 0)
+        sub_grid_layout.addWidget(self.channel_cbox, 1, 1)
+        sub_grid_layout.addWidget(self.apply_crop_box, 2, 0)
+        sub_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
+
+        options_widget = QtGui.QWidget()
+        options_widget.setLayout(sub_grid_layout)
+
+
+        grid_layout.addWidget(options_widget, 1, 2)
 
         # Set the layout and resize the window accordingly
         self.setLayout(grid_layout)
@@ -274,7 +284,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
             self.cropped_img_plot.set_image(self.cv_img.RGB[y_min:y_max, x_min:x_max])
             self.glvw_color_vis.set_plot(plot=img_scatterplot(self.cv_img, self.color_mode, crop_bounds=bounds))
-            self.glvw_channel_vis.set_plot(pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=bounds))
+            self.glvw_channel_vis.set_plot(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=bounds))
 
 
     def setup_menubar(self, main_window):
