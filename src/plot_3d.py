@@ -24,10 +24,10 @@ class Plot3D(gl.GLViewWidget):
 
     def set_plot(self, plot):
         if self.plt_item is not None:
-            self.removeItem(self.plt_item)
-
-        self.plt_item = plot
-        self.addItem(self.plt_item)
+            self.plt_item.setData(pos=plot.pos, color=plot.color)
+        else:
+            self.plt_item = plot
+            self.addItem(self.plt_item)
 
 
     def enable_axes(self, axis_length=3):

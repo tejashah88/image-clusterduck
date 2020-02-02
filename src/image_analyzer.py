@@ -229,7 +229,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.cropped_img_plot = ImagePlotter(title='Cropped Image', img=self.cv_img.RGB)
 
-        self.orig_img_plot.roi_item.sigRegionChanged.connect(self.on_crop_img_by_roi)
+        self.roi.sigRegionChanged.connect(self.on_crop_modify)
         setup_axes_links(self.orig_img_plot, [self.channel_plot])
 
         # Setup color space combo box
@@ -324,7 +324,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def on_color_space_change(self, cspace_index):
         with GuiBusyLock(self):
             self.cs_index = cspace_index
-            self.thresh_bounds = (0, 255)
 
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
@@ -346,7 +345,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.channel_plot.set_image(img=self.curr_image_slice)
 
             # Update the scatterplot
-            self.on_apply_crop_toggle(self.apply_crop_box.isChecked())
+            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
+
+
+    def on_crop_modify(self):
+        if self.apply_crop:
+            (x_min, y_min, x_max, y_max) = self.roi_bounds
+            self.cropped_img_plot.set_image(self.cv_img.RGB[y_min:y_max, x_min:x_max])
+            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
 
     def on_thresh_change(self, thresh_type, thresh_val):
@@ -358,39 +365,30 @@ class MyWindow(pg.GraphicsLayoutWidget):
             else:
                 raise Exception(f'Unknown threshold type given: {thresh_type}')
 
-
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
-
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
             self.channel_plot.set_image(self.curr_image_slice)
-
-            # Update the scatterplot
-            self.on_apply_crop_toggle(self.apply_crop_box.isChecked())
-
 
 
     def on_apply_crop_toggle(self, should_apply_crop):
         self.apply_crop = should_apply_crop
-        self.orig_img_plot.roi_item.sigRegionChanged.emit(self.orig_img_plot.roi_item)
-
-        if not self.apply_crop:
-            self.cropped_img_plot.set_image(self.cv_img.RGB)
-            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+        self.on_img_modify()
 
 
     def on_apply_thresh_toggle(self, should_apply_thresh):
         self.apply_thresh = should_apply_thresh
-
-        if self.apply_thresh:
-            self.on_color_space_change(self.cs_index)
+        self.on_img_modify()
 
 
-    def on_crop_img_by_roi(self, roi):
+    def on_img_modify(self):
         if self.apply_crop:
             (x_min, y_min, x_max, y_max) = self.roi_bounds
             self.cropped_img_plot.set_image(self.cv_img.RGB[y_min:y_max, x_min:x_max])
-            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
-            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
+        else:
+            self.cropped_img_plot.set_image(self.cv_img.RGB)
+
+        self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+        self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
 
     def setup_menubar(self, main_window):

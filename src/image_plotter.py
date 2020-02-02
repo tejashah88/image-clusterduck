@@ -16,6 +16,9 @@ class ImagePlotter(pg.PlotWidget):
         # Create listener variable for containing the listeners for the image item
         self.click_listeners = []
 
+        # Do not automatically set the range of the image to prevent ROI from messing with it
+        self.disableAutoRange()
+
         # Ensure that the pixels are square-looking
         self.setAspectLocked(True)
 
@@ -33,43 +36,40 @@ class ImagePlotter(pg.PlotWidget):
     def set_image(self, img):
         self.img = img
 
-        # Remove the current image item
         if self.img_item is not None:
-            self.removeItem(self.img_item)
-
-        # Create image item and add to plot
-        self.img_item = pg.ImageItem(image=self.img)
-        self.addItem(self.img_item)
+            # Replace the current image with the new one
+            self.img_item.setImage(image=self.img)
+        else:
+            # Create image item and add to plot
+            self.img_item = pg.ImageItem(image=self.img)
+            self.addItem(self.img_item)
 
         # Resize the plot so that it fits the whole image
         self.autoRange()
-
-        # Do not automatically set the range of the image to prevent ROI from messing with it
-        self.disableAutoRange()
 
         # Flip image to match with image coordinates
         self.invertY()
 
         # On click on the image, emit the pixel location and value as an event
-        orig_mouse_press_fn = self.img_item.mousePressEvent
-
-        def get_pixel_at_pos(event):
-            orig_mouse_press_fn(event)
-
-            pixel_loc = event.pos().toPoint()
-            x, y = pixel_loc.x(), pixel_loc.y()
-            height, width = self.img.shape[:2]
-
-            if ((x >= 0 and x < width) and (y >= 0 and y < height)):
-                for listener in self.click_listeners:
-                    listener(x, y, self.img[y, x])
-
-        self.img_item.mousePressEvent = get_pixel_at_pos
+        self.orig_on_pixel_select = self.img_item.mousePressEvent
+        self.img_item.mousePressEvent = self.on_pixel_select
 
         if self.roi_enabled:
             self.roi_item.setPos([0, 0])
             height, width = self.img.shape[:2]
             self.roi_item.setSize([width, height])
+
+
+    def on_pixel_select(self, event):
+        self.orig_on_pixel_select(event)
+
+        pixel_loc = event.pos().toPoint()
+        x, y = pixel_loc.x(), pixel_loc.y()
+        height, width = self.img.shape[:2]
+
+        if ((x >= 0 and x < width) and (y >= 0 and y < height)):
+            for listener in self.click_listeners:
+                listener(x, y, self.img[y, x])
 
 
     @property
