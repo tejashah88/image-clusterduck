@@ -16,6 +16,7 @@ from gui_busy_lock import GuiBusyLock
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
 
+
 def img_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=3):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]

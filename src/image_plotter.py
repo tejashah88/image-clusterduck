@@ -3,8 +3,9 @@ import pyqtgraph as pg
 HANDLE_SIZE = 10
 ROI_PEN_WIDTH = 2
 
-# A plot area (ViewBox + axes) for displaying the image
+
 class ImagePlotter(pg.PlotWidget):
+    """ A wrapper for pg.PlotWidget that allows easy ROI integration, image switching and pixel-click events. """
     def __init__(self, title='', size=(600, 450), img=None, enable_roi=False):
         # Create and initialize plotting widget
         super().__init__()
@@ -55,12 +56,15 @@ class ImagePlotter(pg.PlotWidget):
         self.img_item.mousePressEvent = self.on_pixel_select
 
         if self.roi_enabled:
+            # Set ROI dimensions to match image dimensions
             self.roi_item.setPos([0, 0])
             height, width = self.img.shape[:2]
             self.roi_item.setSize([width, height])
 
 
     def on_pixel_select(self, event):
+        """ This is triggered whenever the suer clicks on a pixel. """
+
         self.orig_on_pixel_select(event)
 
         pixel_loc = event.pos().toPoint()

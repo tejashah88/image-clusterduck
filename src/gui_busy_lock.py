@@ -1,7 +1,10 @@
 from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph as pg
 
+
 class GuiBusyLock(object):
+    """ A object class to control GUI app interactions during long-term operations. """
+
     def __init__(self, parent):
         self.parent = parent
         self.busy_cursor = pg.BusyCursor()
