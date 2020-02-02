@@ -160,12 +160,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     @property
     def roi_bounds(self):
-        if self.apply_crop and self.roi is not None:
+        if self.roi is not None:
             height, width = self.cv_img.RGB.shape[:2]
-            x, y, w, h = self.roi.parentBounds().toAlignedRect().getRect()
-            x_min, y_min = max(x, 0), max(y, 0)
-            x_max, y_max = min(x + w, width), min(y + h, height)
-            return (x_min, y_min, x_max, y_max)
+            if self.apply_crop:
+                x, y, w, h = self.roi.parentBounds().toAlignedRect().getRect()
+                x_min, y_min = max(x, 0), max(y, 0)
+                x_max, y_max = min(x + w, width), min(y + h, height)
+                return (x_min, y_min, x_max, y_max)
+            else:
+                return (0, 0, width, height)
         return None
 
 
