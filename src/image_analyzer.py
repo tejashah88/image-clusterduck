@@ -16,7 +16,7 @@ from gui_busy_lock import GuiBusyLock
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
 
-def img_scatterplot(cv_img, color_mode, crop_bounds=None, scale_factor=3):
+def img_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=3):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -28,6 +28,15 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, scale_factor=3):
 
     rgb_img = rgb_img[y_min:y_max, x_min:x_max]
     converted_img = converted_img[y_min:y_max, x_min:x_max]
+
+    if thresh_bounds is not None:
+        lower_ch, upper_ch = thresh_bounds
+    else:
+        lower_ch, upper_ch = (0, 255)
+
+    channel_arr = converted_img[:, :, ch_index]
+    rgb_img[( (channel_arr < lower_ch) | (channel_arr > upper_ch) )] = 0
+    channel_arr[( (channel_arr < lower_ch) | (channel_arr > upper_ch) )] = 0
 
     pos_arr = converted_img.reshape(-1, 3) / 255 * scale_factor
     color_arr = rgb_img.reshape(-1, 3) / 255
@@ -39,7 +48,7 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, scale_factor=3):
     )
 
 
-def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, scale_factor=5):
+def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=5):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -52,9 +61,20 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, scale_
     rgb_img = rgb_img[y_min:y_max, x_min:x_max]
     converted_img = converted_img[y_min:y_max, x_min:x_max]
 
+    if thresh_bounds is not None:
+        lower_ch, upper_ch = thresh_bounds
+    else:
+        lower_ch, upper_ch = (0, 255)
+
     rows, cols = converted_img.shape[:2]
     c_arr, r_arr = np.meshgrid(np.arange(cols), np.arange(rows))
     channel_arr = converted_img[:, :, ch_index]
+
+    thresh_indicies = ( (channel_arr < lower_ch) | (channel_arr > upper_ch) )
+    rgb_img[thresh_indicies] = 0
+    r_arr[thresh_indicies] = 0
+    c_arr[thresh_indicies] = 0
+    channel_arr[thresh_indicies] = 0
 
     scaled_dim = scale_factor / max(rows, cols)
     scaled_z = 2 / 255
@@ -96,12 +116,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_plot = None
         self.glvw_channel_vis = None
 
+        self.roi = None
         self.menubar = None
         self.statusbar = None
 
-        self.loading = False
-
         self.apply_crop = False
+        self.apply_thresh = False
+
+        self.lower_thresh = 0
+        self.upper_thresh = 255
 
 
     @property
@@ -127,7 +150,45 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     @property
     def curr_image_slice(self):
-        return self.cv_img[self.color_mode][:, :, self.ch_index]
+        img_slice = self.cv_img[self.color_mode][:, :, self.ch_index]
+        if self.apply_thresh:
+            lower_ch, upper_ch = self.thresh_bounds
+            thresh_indicies = ( (img_slice < lower_ch) | (img_slice > upper_ch) )
+            img_slice[thresh_indicies] = 0
+        return img_slice
+
+
+    @property
+    def roi_bounds(self):
+        if self.apply_crop and self.roi is not None:
+            height, width = self.cv_img.RGB.shape[:2]
+            x, y, w, h = self.roi.parentBounds().toAlignedRect().getRect()
+            x_min, y_min = max(x, 0), max(y, 0)
+            x_max, y_max = min(x + w, width), min(y + h, height)
+            return (x_min, y_min, x_max, y_max)
+        return None
+
+
+    @property
+    def thresh_bounds(self):
+        if self.apply_thresh:
+            return (self.lower_thresh, self.upper_thresh)
+        return None
+
+
+    @thresh_bounds.setter
+    def thresh_bounds(self, val):
+        self.lower_thresh, self.upper_thresh = val
+
+
+    @property
+    def curr_img_scatterplot(self):
+        return img_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=self.roi_bounds, thresh_bounds=self.thresh_bounds)
+
+
+    @property
+    def curr_pos_color_scatterplot(self):
+        return pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=self.roi_bounds, thresh_bounds=self.thresh_bounds)
 
 
     def load_image(self, img_path, max_pixels=1000000):
@@ -151,7 +212,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
             if self.gui_ready:
                 self.orig_img_plot.set_image(self.cv_img.RGB)
-                self.glvw_color_vis.set_plot(img_scatterplot(self.cv_img, self.color_mode))
                 self.on_color_space_change(self.cs_index)
 
 
@@ -161,10 +221,11 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup main plots
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_roi=True)
-        self.glvw_color_vis = Plot3D(plot=img_scatterplot(self.cv_img, self.color_mode))
+        self.roi = self.orig_img_plot.roi_item
+        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot)
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
-        self.glvw_channel_vis = Plot3D(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index), enable_axes=False)
+        self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False)
 
         self.cropped_img_plot = ImagePlotter(title='Cropped Image', img=self.cv_img.RGB)
 
@@ -186,6 +247,23 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
 
+        self.apply_thresh_box = QtGui.QCheckBox('Apply Thresholding')
+        self.apply_thresh_box.setChecked(self.apply_thresh)
+        self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
+
+        # Setup thresholding sliders based on current channel
+        self.channel_lower_thresh_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.channel_lower_thresh_slider.setMinimum(0)
+        self.channel_lower_thresh_slider.setMaximum(255)
+        self.channel_lower_thresh_slider.setValue(0)
+        self.channel_lower_thresh_slider.valueChanged.connect(lambda lower_val: self.on_thresh_change('lower', lower_val))
+
+        self.channel_upper_thresh_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.channel_upper_thresh_slider.setMinimum(0)
+        self.channel_upper_thresh_slider.setMaximum(255)
+        self.channel_upper_thresh_slider.setValue(255)
+        self.channel_upper_thresh_slider.valueChanged.connect(lambda upper_val: self.on_thresh_change('upper', upper_val))
+
         # Setup widgets according to given grid layout
         grid_layout = QtGui.QGridLayout()
 
@@ -205,6 +283,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
         sub_grid_layout.addWidget(self.channel_cbox, 1, 1)
 
         sub_grid_layout.addWidget(self.apply_crop_box, 2, 0)
+        sub_grid_layout.addWidget(self.apply_thresh_box, 2, 1)
+
+        sub_grid_layout.addWidget(QtGui.QLabel('Lower Threshold:'), 3, 0)
+        sub_grid_layout.addWidget(self.channel_lower_thresh_slider, 3, 1)
+        sub_grid_layout.addWidget(QtGui.QLabel('Upper Threshold:'), 4, 0)
+        sub_grid_layout.addWidget(self.channel_upper_thresh_slider, 4, 1)
+
         sub_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
 
         options_widget = QtGui.QWidget()
@@ -239,13 +324,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def on_color_space_change(self, cspace_index):
         with GuiBusyLock(self):
             self.cs_index = cspace_index
+            self.thresh_bounds = (0, 255)
 
-            self.glvw_color_vis.set_plot(plot=img_scatterplot(self.cv_img, self.color_mode))
-
-            self.channel_plot.setTitle(title=self.channel_mode)
-            self.channel_plot.set_image(img=self.curr_image_slice)
-
-            self.glvw_channel_vis.set_plot(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index))
+            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
             self.channel_cbox.clear()
             self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
@@ -258,13 +340,33 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.ch_index = ch_index
 
             # Update the title
-            self.channel_plot.setTitle(self.channel_mode)
+            self.channel_plot.setTitle(title=self.channel_mode)
 
             # Update the image
+            self.channel_plot.set_image(img=self.curr_image_slice)
+
+            # Update the scatterplot
+            self.on_apply_crop_toggle(self.apply_crop_box.isChecked())
+
+
+    def on_thresh_change(self, thresh_type, thresh_val):
+        if self.apply_thresh:
+            if thresh_type == 'lower':
+                self.lower_thresh = thresh_val
+            elif thresh_type == 'upper':
+                self.upper_thresh = thresh_val
+            else:
+                raise Exception(f'Unknown threshold type given: {thresh_type}')
+
+
+            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+
+            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
             self.channel_plot.set_image(self.curr_image_slice)
 
             # Update the scatterplot
             self.on_apply_crop_toggle(self.apply_crop_box.isChecked())
+
 
 
     def on_apply_crop_toggle(self, should_apply_crop):
@@ -273,19 +375,22 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         if not self.apply_crop:
             self.cropped_img_plot.set_image(self.cv_img.RGB)
-            self.glvw_color_vis.set_plot(plot=img_scatterplot(self.cv_img, self.color_mode))
+            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+
+
+    def on_apply_thresh_toggle(self, should_apply_thresh):
+        self.apply_thresh = should_apply_thresh
+
+        if self.apply_thresh:
+            self.on_color_space_change(self.cs_index)
+
 
     def on_crop_img_by_roi(self, roi):
         if self.apply_crop:
-            height, width = self.cv_img.RGB.shape[:2]
-            x, y, w, h = roi.parentBounds().toAlignedRect().getRect()
-            x_min, y_min = max(x, 0), max(y, 0)
-            x_max, y_max = min(x + w, width), min(y + h, height)
-            bounds = (x_min, y_min, x_max, y_max)
-
+            (x_min, y_min, x_max, y_max) = self.roi_bounds
             self.cropped_img_plot.set_image(self.cv_img.RGB[y_min:y_max, x_min:x_max])
-            self.glvw_color_vis.set_plot(plot=img_scatterplot(self.cv_img, self.color_mode, crop_bounds=bounds))
-            self.glvw_channel_vis.set_plot(plot=pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=bounds))
+            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
 
     def setup_menubar(self, main_window):
