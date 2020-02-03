@@ -7,7 +7,9 @@ from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
-from constants import ALL_COLOR_SPACES, COLOR_SPACE_LABELS
+import sklearn.cluster
+
+from constants import ALL_COLOR_SPACES, COLOR_SPACE_LABELS, IMPLEMENTED_COLOR_SPACES
 from cv_img import CvImg
 from image_plotter import ImagePlotter
 from plot_3d import Plot3D
@@ -123,6 +125,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.apply_crop = False
         self.apply_thresh = False
+        self.apply_cluster = False
+        self.apply_hist = False
 
         self.lower_thresh = 0
         self.upper_thresh = 255
@@ -201,7 +205,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
             if input_img is None:
                 print(f'Error: Unable to load image from {img_path}')
-                exit(-1)
+                return
 
             height, width = input_img.shape[:2]
             num_pixels = width * height
@@ -217,6 +221,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             if self.gui_ready:
                 self.orig_img_plot.set_image(self.cv_img.RGB)
                 self.on_color_space_change(self.cs_index)
+                self.on_img_modify()
 
 
     def setup_gui(self):
@@ -246,7 +251,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
-        # Setup 'apply crop' checkbox
+        # Setup crop, thresholding, clustering, and histogram checkboxes
         self.apply_crop_box = QtGui.QCheckBox('Apply Cropping')
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
@@ -255,17 +260,27 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
 
+        self.apply_cluster_box = QtGui.QCheckBox('Apply Clustering')
+        self.apply_cluster_box.setChecked(self.apply_cluster)
+        self.apply_cluster_box.toggled.connect(self.on_apply_cluster_toggle)
+
+        self.apply_hist_box = QtGui.QCheckBox('Show Histograms')
+        self.apply_hist_box.setChecked(self.apply_hist)
+        self.apply_hist_box.toggled.connect(self.on_apply_hist_toggle)
+
         # Setup thresholding sliders based on current channel
         self.channel_lower_thresh_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.channel_lower_thresh_slider.setMinimum(0)
         self.channel_lower_thresh_slider.setMaximum(255)
         self.channel_lower_thresh_slider.setValue(0)
+        self.channel_lower_thresh_slider.setEnabled(False)
         self.channel_lower_thresh_slider.valueChanged.connect(lambda lower_val: self.on_thresh_change('lower', lower_val))
 
         self.channel_upper_thresh_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.channel_upper_thresh_slider.setMinimum(0)
         self.channel_upper_thresh_slider.setMaximum(255)
         self.channel_upper_thresh_slider.setValue(255)
+        self.channel_upper_thresh_slider.setEnabled(False)
         self.channel_upper_thresh_slider.valueChanged.connect(lambda upper_val: self.on_thresh_change('upper', upper_val))
 
         # Setup widgets according to given grid layout
@@ -293,6 +308,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
         sub_grid_layout.addWidget(self.channel_lower_thresh_slider, 3, 1)
         sub_grid_layout.addWidget(QtGui.QLabel('Upper Threshold:'), 4, 0)
         sub_grid_layout.addWidget(self.channel_upper_thresh_slider, 4, 1)
+
+        sub_grid_layout.addWidget(self.apply_cluster_box, 5, 0)
+        sub_grid_layout.addWidget(self.apply_hist_box, 5, 1)
 
         sub_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
 
@@ -381,6 +399,18 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_apply_thresh_toggle(self, should_apply_thresh):
         self.apply_thresh = should_apply_thresh
+        self.channel_lower_thresh_slider.setEnabled(self.apply_thresh)
+        self.channel_upper_thresh_slider.setEnabled(self.apply_thresh)
+        self.on_img_modify()
+
+
+    def on_apply_cluster_toggle(self, should_apply_cluster):
+        self.apply_cluster = should_apply_cluster
+        self.on_img_modify()
+
+
+    def on_apply_hist_toggle(self, should_apply_hist):
+        self.apply_hist = should_apply_hist
         self.on_img_modify()
 
 

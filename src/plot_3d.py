@@ -11,6 +11,7 @@ class Plot3D(gl.GLViewWidget):
         # Create vars for the axes and 3d plot items
         self.axes_item = None
         self.plt_item = None
+        self.cplt_item = None
 
         # Setup the title and plot size
         self.setFixedSize(*size)
@@ -28,6 +29,14 @@ class Plot3D(gl.GLViewWidget):
         else:
             self.plt_item = plot
             self.addItem(self.plt_item)
+
+
+    def set_cluster_plot(self, cplot):
+        if self.cplt_item is not None:
+            self.cplt_item.setData(pos=cplot.pos, color=cplot.color)
+        else:
+            self.cplt_item = cplot
+            self.addItem(self.cplt_item)
 
 
     def enable_axes(self, axis_length=3):

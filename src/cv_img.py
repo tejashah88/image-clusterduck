@@ -1,6 +1,6 @@
 import cv2
 
-IMPLEMENTED_COLOR_SPACES = ['RGB', 'BGR', 'YUV', 'YCrCb', 'LAB', 'LUV', 'HLS', 'HSV', 'XYZ', 'GRAY']
+from constants import IMPLEMENTED_COLOR_SPACES
 
 
 class CvImg:

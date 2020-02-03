@@ -45,15 +45,15 @@ class ImagePlotter(pg.PlotWidget):
             self.img_item = pg.ImageItem(image=self.img)
             self.addItem(self.img_item)
 
+            # On click on the image, emit the pixel location and value as an event
+            self.orig_on_pixel_select = self.img_item.mousePressEvent
+            self.img_item.mousePressEvent = self.on_pixel_select
+
         # Resize the plot so that it fits the whole image
         self.autoRange()
 
         # Flip image to match with image coordinates
         self.invertY()
-
-        # On click on the image, emit the pixel location and value as an event
-        self.orig_on_pixel_select = self.img_item.mousePressEvent
-        self.img_item.mousePressEvent = self.on_pixel_select
 
         if self.roi_enabled:
             # Set ROI dimensions to match image dimensions
@@ -64,7 +64,6 @@ class ImagePlotter(pg.PlotWidget):
 
     def on_pixel_select(self, event):
         """ This is triggered whenever the suer clicks on a pixel. """
-
         self.orig_on_pixel_select(event)
 
         pixel_loc = event.pos().toPoint()
