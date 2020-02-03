@@ -9,14 +9,32 @@ import pyqtgraph.opengl as gl
 
 import sklearn.cluster
 
-from constants import ALL_COLOR_SPACES, COLOR_SPACE_LABELS, IMPLEMENTED_COLOR_SPACES
+from constants import *
 from cv_img import CvImg
 from image_plotter import ImagePlotter
 from plot_3d import Plot3D
 from gui_busy_lock import GuiBusyLock
+from image_clusterers import KMeansImageClusterer, MiniBatchKMeansImageClusterer
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
+
+
+IMG_CLUSTERERS = [
+    KMeansImageClusterer(),
+    MiniBatchKMeansImageClusterer(),
+]
+
+
+def create_cluster_plot(cv_img, color_mode):
+    color_centers, error = kmeans_image(cv_img, color_mode, 10)
+    colored_centers = get_rgb_from(color_centers, color_mode) / 255
+    # color_centers = (color_centers * 255).astype(int)
+    return gl.GLScatterPlotItem(
+        pos=color_centers / 255 * 3, color=colored_centers,
+        size=0.5, pxMode=not True,
+        glOptions='opaque'
+    )
 
 
 def img_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=3):
@@ -111,8 +129,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.setWindowTitle('Image Cluster Analysis')
 
         self.cv_img = None
+
         self.ch_index = 0
         self.cs_index = 0
+        self.cluster_index = 0
 
         self.orig_img_plot = None
         self.glvw_color_vis = None
@@ -232,6 +252,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_roi=True)
         self.roi = self.orig_img_plot.roi_item
         self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot)
+        # self.glvw_color_vis.set_cluster_plot(create_cluster_plot(self.cv_img, self.color_mode))
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
         self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False)
@@ -244,11 +265,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Setup color space combo box
         self.color_space_cbox = QtGui.QComboBox()
         self.color_space_cbox.addItems(ALL_COLOR_SPACES)
+        self.color_space_cbox.setCurrentIndex(self.cs_index)
         self.color_space_cbox.currentIndexChanged.connect(self.on_color_space_change)
 
         # Setup channel combo box
         self.channel_cbox = QtGui.QComboBox()
         self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
+        self.channel_cbox.setCurrentIndex(self.ch_index)
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
         # Setup crop, thresholding, clustering, and histogram checkboxes
@@ -268,6 +291,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_hist_box.setChecked(self.apply_hist)
         self.apply_hist_box.toggled.connect(self.on_apply_hist_toggle)
 
+        # Setup clustering algorithm combo box
+        self.cluster_cbox = QtGui.QComboBox()
+        self.cluster_cbox.addItems(ALL_CLUSTER_ALGORITHMS)
+        self.cluster_cbox.setCurrentIndex(self.cluster_index)
+        self.cluster_cbox.currentIndexChanged.connect(self.on_cluster_algo_change)
+        self.cluster_cbox.setEnabled(False)
+
         # Setup thresholding sliders based on current channel
         self.channel_lower_thresh_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.channel_lower_thresh_slider.setMinimum(0)
@@ -283,6 +313,11 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_upper_thresh_slider.setEnabled(False)
         self.channel_upper_thresh_slider.valueChanged.connect(lambda upper_val: self.on_thresh_change('upper', upper_val))
 
+        # Setup cluster calculating button
+        self.run_clustering_button = QtGui.QPushButton('Run Clustering')
+        self.run_clustering_button.setEnabled(False)
+        self.run_clustering_button.clicked.connect(self.on_run_clustering)
+
         # Setup widgets according to given grid layout
         grid_layout = QtGui.QGridLayout()
 
@@ -294,28 +329,41 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         grid_layout.addWidget(self.cropped_img_plot, 0, 2)
 
-        sub_grid_layout = QtGui.QGridLayout()
+        self.settings_grid_layout = QtGui.QGridLayout()
 
-        sub_grid_layout.addWidget(QtGui.QLabel('Color Space:'), 0, 0)
-        sub_grid_layout.addWidget(self.color_space_cbox, 0, 1)
-        sub_grid_layout.addWidget(QtGui.QLabel('Channel:'), 1, 0)
-        sub_grid_layout.addWidget(self.channel_cbox, 1, 1)
+        self.settings_grid_layout.addWidget(QtGui.QLabel('Color Space:'), 0, 0)
+        self.settings_grid_layout.addWidget(self.color_space_cbox, 0, 1)
+        self.settings_grid_layout.addWidget(QtGui.QLabel('Channel:'), 1, 0)
+        self.settings_grid_layout.addWidget(self.channel_cbox, 1, 1)
 
-        sub_grid_layout.addWidget(self.apply_crop_box, 2, 0)
-        sub_grid_layout.addWidget(self.apply_thresh_box, 2, 1)
+        self.settings_grid_layout.addWidget(self.apply_crop_box, 2, 0)
+        self.settings_grid_layout.addWidget(self.apply_thresh_box, 2, 1)
 
-        sub_grid_layout.addWidget(QtGui.QLabel('Lower Threshold:'), 3, 0)
-        sub_grid_layout.addWidget(self.channel_lower_thresh_slider, 3, 1)
-        sub_grid_layout.addWidget(QtGui.QLabel('Upper Threshold:'), 4, 0)
-        sub_grid_layout.addWidget(self.channel_upper_thresh_slider, 4, 1)
+        self.settings_grid_layout.addWidget(QtGui.QLabel('Lower Threshold:'), 3, 0)
+        self.settings_grid_layout.addWidget(self.channel_lower_thresh_slider, 3, 1)
+        self.settings_grid_layout.addWidget(QtGui.QLabel('Upper Threshold:'), 4, 0)
+        self.settings_grid_layout.addWidget(self.channel_upper_thresh_slider, 4, 1)
 
-        sub_grid_layout.addWidget(self.apply_cluster_box, 5, 0)
-        sub_grid_layout.addWidget(self.apply_hist_box, 5, 1)
+        self.settings_grid_layout.addWidget(self.apply_cluster_box, 5, 0)
+        self.settings_grid_layout.addWidget(self.apply_hist_box, 5, 1)
 
-        sub_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
+        self.settings_grid_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 6, 0)
+        self.settings_grid_layout.addWidget(self.cluster_cbox, 6, 1)
+
+        self.clusterer_controller = IMG_CLUSTERERS[self.cluster_index]
+        cluster_settings_layout = self.clusterer_controller.setup_settings_layout()
+
+        self.cluster_settings_widget = QtGui.QWidget()
+        self.cluster_settings_widget.setLayout(cluster_settings_layout)
+        self.cluster_settings_widget.setEnabled(False)
+        self.settings_grid_layout.addWidget(self.cluster_settings_widget, 7, 0, 1, 2)
+
+        self.settings_grid_layout.addWidget(self.run_clustering_button, 8, 1)
+
+        self.settings_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
 
         options_widget = QtGui.QWidget()
-        options_widget.setLayout(sub_grid_layout)
+        options_widget.setLayout(self.settings_grid_layout)
 
         grid_layout.addWidget(options_widget, 1, 2)
 
@@ -370,6 +418,22 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
 
+    def on_cluster_algo_change(self, cluster_index):
+        self.cluster_index = cluster_index
+
+        self.clusterer_controller = IMG_CLUSTERERS[self.cluster_index]
+        cluster_settings_layout = self.clusterer_controller.setup_settings_layout()
+
+        old_widget = self.cluster_settings_widget
+        self.cluster_settings_widget = QtGui.QWidget()
+        self.cluster_settings_widget.setLayout(cluster_settings_layout)
+        self.cluster_settings_widget.setEnabled(self.apply_cluster)
+
+        self.settings_grid_layout.replaceWidget(old_widget, self.cluster_settings_widget)
+        QtCore.QObjectCleanupHandler().add(old_widget)
+        self.settings_grid_layout.update()
+
+
     def on_crop_modify(self):
         if self.apply_crop:
             (x_min, y_min, x_max, y_max) = self.roi_bounds
@@ -406,12 +470,22 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_apply_cluster_toggle(self, should_apply_cluster):
         self.apply_cluster = should_apply_cluster
+        self.cluster_cbox.setEnabled(self.apply_cluster)
+        self.cluster_settings_widget.setEnabled(self.apply_cluster)
+        self.run_clustering_button.setEnabled(self.apply_cluster)
+
         self.on_img_modify()
 
 
     def on_apply_hist_toggle(self, should_apply_hist):
         self.apply_hist = should_apply_hist
         self.on_img_modify()
+
+
+    def on_run_clustering(self):
+        if self.apply_cluster:
+            with GuiBusyLock(self):
+                self.clusterer_controller.run_clustering(self.cv_img, self.color_mode)
 
 
     def on_img_modify(self):
