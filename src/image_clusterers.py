@@ -66,13 +66,20 @@ class BaseImageClusterer:
                 setting_widget.setSingleStep(step_val)
                 setting_widget.setValue(param_default_val)
 
-                # setting_widget.valueChanged.connect()
+                gen_on_spinbox_value_changed = lambda pname: (lambda val: self.set_clustering_params({ pname: val }))
+                on_spinbox_value_changed = gen_on_spinbox_value_changed(param_name)
+
+                setting_widget.valueChanged.connect(on_spinbox_value_changed)
             elif param_gui_component == 'dropdown':
                 choices = param_metadata
 
                 setting_widget = QtGui.QComboBox()
                 setting_widget.addItems(choices)
-                # setting_widget.currentIndexChanged.connect()
+
+                gen_on_dropdown_value_changed = lambda pname, choices: (lambda index: self.set_clustering_params({ pname: choices[index] }))
+                on_dropdown_value_changed = gen_on_dropdown_value_changed(param_name, choices)
+
+                setting_widget.currentIndexChanged.connect(on_dropdown_value_changed)
             elif param_gui_component == 'slider':
                 min_val, max_val, step_val = param_metadata
 
@@ -81,27 +88,37 @@ class BaseImageClusterer:
                 setting_widget.setMaximum(max_val)
                 setting_widget.setSingleStep(step_val)
                 setting_widget.setValue(param_default_val)
-                # setting_widget.valueChanged.connect(lambda lower_val: self.on_thresh_change('lower', lower_val))
+
+                gen_on_slider_value_changed = lambda pname: (lambda val: self.set_clustering_params({ pname: val }))
+                on_slider_value_changed = gen_on_slider_value_changed(param_name)
+
+                setting_widget.valueChanged.connect(on_slider_value_changed)
             elif param_gui_component == 'checkbox':
                 setting_widget = QtGui.QCheckBox()
-                # setting_widget.setChecked(self.apply_hist)
-                # setting_widget.toggled.connect(self.on_apply_hist_toggle)
+
+                gen_on_checkbox_value_changed = lambda pname: (lambda val: self.set_clustering_params({ pname: val }))
+                on_checkbox_value_changed = gen_on_checkbox_value_changed(param_name)
+
+                setting_widget.toggled.connect(on_checkbox_value_changed)
 
             settings_layout.addWidget(setting_widget, index, 1)
 
         return settings_layout
 
 
-    def init_clustering_params(self, **params):
+    def init_clustering_params(self, params={}):
         for index, param_row in self.param_config.iterrows():
             param_name = param_row['name']
+            param_curr_val = params.get(param_name)
             param_default_val = param_row['default_val']
-            self.params[param_name] = params.get(param_name) or param_default_val
+            self.params[param_name] = param_curr_val if param_curr_val is not None else param_default_val
 
 
-    def set_clustering_params(self, **params):
+    def set_clustering_params(self, params={}):
         for param_name in params:
-            self.params[param_name] = params.get(param_name) or param_default_val
+            param_curr_val = params.get(param_name)
+            param_default_val = self.param_config[self.param_config['name'] == param_name]['default_val'].tolist()[0]
+            self.params[param_name] = param_curr_val if param_curr_val is not None else param_default_val
 
 
     def run_clustering(self, cv_img, color_mode):
