@@ -53,6 +53,7 @@ class BaseImageClusterer:
             param_gui_component = param_row['gui_component']
             param_default_val = param_row['default_val']
             param_metadata = param_row['metadata']
+            param_transform_fn = param_row['transform_fn']
 
             settings_layout.addWidget(QtGui.QLabel(f'{param_title}:'), index, 0)
             setting_widget = None
@@ -112,14 +113,17 @@ class BaseImageClusterer:
             param_name = param_row['name']
             param_curr_val = params.get(param_name)
             param_default_val = param_row['default_val']
-            self.params[param_name] = param_curr_val if param_curr_val is not None else param_default_val
+            param_transform_fn = param_row['transform_fn'] or (lambda args: args)
+            self.params[param_name] = param_transform_fn(param_curr_val if param_curr_val is not None else param_default_val)
 
 
     def set_clustering_params(self, params={}):
         for param_name in params:
             param_curr_val = params.get(param_name)
-            param_default_val = self.param_config[self.param_config['name'] == param_name]['default_val'].tolist()[0]
-            self.params[param_name] = param_curr_val if param_curr_val is not None else param_default_val
+            param_row = self.param_config[self.param_config['name'] == param_name]
+            param_default_val = param_row['default_val'].tolist()[0]
+            param_transform_fn = param_row['transform_fn'].tolist()[0] or (lambda args: args)
+            self.params[param_name] = param_transform_fn(param_curr_val if param_curr_val is not None else param_default_val)
 
 
     def run_clustering(self, cv_img, color_mode):
@@ -141,14 +145,14 @@ class BaseImageClusterer:
 class KMeansImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
     _param_config = [
-        ('num_clusters', 'n_clusters', 'Number of clusters', 'spinbox' , 8       , (1, INT_MAX, 1)          ),
-        ('init_centers', 'init'      , 'Initial centers'   , 'dropdown', 'random', ('random', 'kmeans++')   ),
-        ('repeat_count', 'n_init'    , 'Number of runs'    , 'spinbox' , 10      , (1, INT_MAX, 1)          ),
-        ('max_iter'    , 'max_iter'  , 'Max interations'   , 'spinbox' , 300     , (1, INT_MAX, 1)          ),
-        ('tolerance'   , 'tol'       , 'Tolerance'         , 'slider'  , -4      , (-10, 10, 1)             ),
-        ('num_jobs'    , 'n_jobs'    , 'Number of jobs'    , 'spinbox' , 1       , (1, NUM_CPUS, 1)         ),
-        ('algorithm'   , 'algorithm' , 'Algorithm type'    , 'dropdown', 'auto'  , ('auto', 'full', 'elkan')),
-        ('verbose'     , 'verbose'   , 'Verbose Logging'   , 'checkbox', False   , None                     ),
+        ('num_clusters', 'n_clusters', 'Number of clusters', 'spinbox' , 8       , (1, INT_MAX, 1)          , None),
+        ('init_centers', 'init'      , 'Initial centers'   , 'dropdown', 'random', ('random', 'kmeans++')   , None),
+        ('repeat_count', 'n_init'    , 'Number of runs'    , 'spinbox' , 10      , (1, INT_MAX, 1)          , None),
+        ('max_iter'    , 'max_iter'  , 'Max interations'   , 'spinbox' , 300     , (1, INT_MAX, 1)          , None),
+        ('tolerance'   , 'tol'       , 'Tolerance'         , 'slider'  , -4      , (-10, 10, 1)             , lambda val: 10**val),
+        ('num_jobs'    , 'n_jobs'    , 'Number of jobs'    , 'spinbox' , 1       , (1, NUM_CPUS, 1)         , None),
+        ('algorithm'   , 'algorithm' , 'Algorithm type'    , 'dropdown', 'auto'  , ('auto', 'full', 'elkan'), None),
+        ('verbose'     , 'verbose'   , 'Verbose Logging'   , 'checkbox', False   , None                     , None),
     ]
 
     def __init__(self):
@@ -160,25 +164,25 @@ class KMeansImageClusterer(BaseImageClusterer):
 
         color_centers = cluster_results.cluster_centers_
         color_labels = cluster_results.labels_
-        rgb_color_centers = get_rgb_from(color_centers, color_mode)
+        rgb_colored_centers = get_rgb_from(color_centers, color_mode)
         cluster_error = cluster_results.inertia_
         num_iterations = cluster_results.n_iter_
 
-        return (color_centers, color_labels, rgb_color_centers, cluster_error, num_iterations)
+        return (color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations)
 
 
 class MiniBatchKMeansImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html
     _param_config = [
-        ('num_clusters'  , 'n_clusters'        , 'Number of clusters'   , 'spinbox' , 8       , (1, INT_MAX, 1)         ),
-        ('init_centers'  , 'init'              , 'Initial centers'      , 'dropdown', 'random', ('random', 'kmeans++')  ),
-        ('repeat_count'  , 'n_init'            , 'Number of runs'       , 'spinbox' , 10      , (1, INT_MAX, 1)         ),
-        ('max_iter'      , 'max_iter'          , 'Max interations'      , 'spinbox' , 300     , (1, INT_MAX, 1)         ),
-        ('tolerance'     , 'tol'               , 'Tolerance'            , 'slider'  , -4      , (-10, 10, 1)            ),
-        ('batch_size'    , 'batch_size'        , 'Batch Size'           , 'spinbox' , 100     , (1, INT_MAX, 1)         ),
-        ('iter_plateau'  , 'max_no_improvement', 'Max iteration plateau', 'spinbox' , 10      , (0, INT_MAX, 1)         ),
-        ('reassign_ratio', 'reassignment_ratio', 'Reassignment Ratio'   , 'spinbox' , 10      , (0, 1000, 1)            ),
-        ('verbose'       , 'verbose'           , 'Verbose Logging'      , 'checkbox', False   , None                    ),
+        ('num_clusters'  , 'n_clusters'        , 'Number of clusters'   , 'spinbox' , 8       , (1, INT_MAX, 1)       , None),
+        ('init_centers'  , 'init'              , 'Initial centers'      , 'dropdown', 'random', ('random', 'kmeans++'), None),
+        ('repeat_count'  , 'n_init'            , 'Number of runs'       , 'spinbox' , 10      , (1, INT_MAX, 1)       , None),
+        ('max_iter'      , 'max_iter'          , 'Max interations'      , 'spinbox' , 300     , (1, INT_MAX, 1)       , None),
+        ('tolerance'     , 'tol'               , 'Tolerance'            , 'slider'  , -4      , (-10, 10, 1)          , lambda val: 10**val),
+        ('batch_size'    , 'batch_size'        , 'Batch Size'           , 'spinbox' , 100     , (1, INT_MAX, 1)       , None),
+        ('iter_plateau'  , 'max_no_improvement', 'Max iteration plateau', 'spinbox' , 10      , (0, INT_MAX, 1)       , None),
+        ('reassign_ratio', 'reassignment_ratio', 'Reassignment Ratio'   , 'spinbox' , 10      , (0, 1000, 1)          , None),
+        ('verbose'       , 'verbose'           , 'Verbose Logging'      , 'checkbox', False   , None                  , None),
     ]
 
     def __init__(self):
@@ -190,10 +194,10 @@ class MiniBatchKMeansImageClusterer(BaseImageClusterer):
 
         color_centers = cluster_results.cluster_centers_
         color_labels = cluster_results.labels_
-        rgb_color_centers = get_rgb_from(color_centers, color_mode)
+        rgb_colored_centers = get_rgb_from(color_centers, color_mode)
         cluster_error = cluster_results.inertia_
         num_iterations = cluster_results.n_iter_
 
-        return (color_centers, color_labels, rgb_color_centers, cluster_error, num_iterations)
+        return (color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations)
 
         return (color_centers, color_labels, rgb_color_centers, cluster_error)

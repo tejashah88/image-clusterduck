@@ -14,24 +14,33 @@ from cv_img import CvImg
 from image_plotter import ImagePlotter
 from plot_3d import Plot3D
 from gui_busy_lock import GuiBusyLock
-from image_clusterers import KMeansImageClusterer, MiniBatchKMeansImageClusterer
+from image_clusterers import *
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
 
 
-IMG_CLUSTERERS = [
-    KMeansImageClusterer(),
-    MiniBatchKMeansImageClusterer(),
-]
+CLUSTER_ALGORITHMS = {
+    'K-Means'                       : KMeansImageClusterer(),
+    'Mini Batch K-Means'            : MiniBatchKMeansImageClusterer(),
+    'Affinity Propagation'          : AffinityPropagationImageClusterer(),
+    'Mean Shift'                    : MeanShiftImageClusterer(),
+    'Spectral Clustering'           : None,
+    'Ward Hierarchical Clustering'  : None,
+    'Agglomerative Clustering'      : None,
+    'DBSCAN'                        : None,
+    'OPTICS'                        : None,
+    'Gaussian Mixtures'             : None,
+    'Birch'                         : None,
+}
+
+ALL_CLUSTER_ALGORITHMS = list(CLUSTER_ALGORITHMS.keys())
+IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
 
 
-def create_cluster_plot(cv_img, color_mode):
-    color_centers, error = kmeans_image(cv_img, color_mode, 10)
-    colored_centers = get_rgb_from(color_centers, color_mode) / 255
-
+def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=3):
     return gl.GLScatterPlotItem(
-        pos=color_centers / 255 * 3, color=colored_centers,
+        pos=color_centers / 255 * scale_factor, color=rgb_colored_centers / 255,
         size=0.5, pxMode=not True,
         glOptions='opaque'
     )
@@ -69,7 +78,7 @@ def img_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bound
     )
 
 
-def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=5):
+def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=5, scale_z=2):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -98,7 +107,7 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
     channel_arr[thresh_indicies] = 0
 
     scaled_dim = scale_factor / max(rows, cols)
-    scaled_z = 2 / 255
+    scaled_z = scale_z / 255
 
     row_array = (r_arr.flatten() - rows // 2) * scaled_dim
     col_array = (c_arr.flatten() - cols // 2) * scaled_dim
@@ -480,8 +489,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
         if self.apply_cluster:
             with GuiBusyLock(self):
                 try:
-                    (color_centers, color_labels, rgb_color_centers, cluster_error, num_iterations) = self.clusterer_controller.run_clustering(self.cv_img, self.color_mode)
-
+                    (color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations) = self.clusterer_controller.run_clustering(self.cv_img, self.color_mode)
+                    self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
                 except Exception as ex:
                     print(ex)
                     QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
