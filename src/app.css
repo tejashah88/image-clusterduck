@@ -1,0 +1,3 @@
+QCheckBox:unchecked { color: white; }
+QCheckBox:checked { color: white; }
+QLabel:enabled { color: white; }
