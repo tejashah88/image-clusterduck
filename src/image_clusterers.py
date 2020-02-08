@@ -138,19 +138,20 @@ class BaseImageClusterer:
 
 
 class KMeansImageClusterer(BaseImageClusterer):
+    # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
     _param_config = [
-        ('num_clusters', 'n_clusters', 'Number of clusters', 'spinbox' , 8       , (1, INT_MAX, 1)),
-        ('init_centers', 'init'      , 'Initial centers'   , 'dropdown', 'random', ('random', 'kmeans++')),
-        ('repeat_count', 'n_init'    , 'Number of runs'    , 'spinbox' , 10      , (1, INT_MAX, 1)),
-        ('max_iter'    , 'max_iter'  , 'Max interations'   , 'spinbox' , 300     , (1, INT_MAX, 1)),
-        ('tolerance'   , 'tol'       , 'Tolerance'         , 'slider'  , -4      , (-10, 10, 1)),
-        ('num_jobs'    , 'n_jobs'    , 'Number of jobs'    , 'spinbox' , 1       , (1, NUM_CPUS, 1)),
+        ('num_clusters', 'n_clusters', 'Number of clusters', 'spinbox' , 8       , (1, INT_MAX, 1)          ),
+        ('init_centers', 'init'      , 'Initial centers'   , 'dropdown', 'random', ('random', 'kmeans++')   ),
+        ('repeat_count', 'n_init'    , 'Number of runs'    , 'spinbox' , 10      , (1, INT_MAX, 1)          ),
+        ('max_iter'    , 'max_iter'  , 'Max interations'   , 'spinbox' , 300     , (1, INT_MAX, 1)          ),
+        ('tolerance'   , 'tol'       , 'Tolerance'         , 'slider'  , -4      , (-10, 10, 1)             ),
+        ('num_jobs'    , 'n_jobs'    , 'Number of jobs'    , 'spinbox' , 1       , (1, NUM_CPUS, 1)         ),
         ('algorithm'   , 'algorithm' , 'Algorithm type'    , 'dropdown', 'auto'  , ('auto', 'full', 'elkan')),
-        ('verbose'     , 'verbose'   , 'Verbose Logging'   , 'checkbox', False   , None),
+        ('verbose'     , 'verbose'   , 'Verbose Logging'   , 'checkbox', False   , None                     ),
     ]
 
     def __init__(self):
-        super().__init__(sklearn.cluster.KMeans, KMeansImageClusterer._param_config)
+        super().__init__(sklearn.cluster.KMeans, self._param_config)
 
 
     def run_clustering(self, cv_img, color_mode):
@@ -165,20 +166,21 @@ class KMeansImageClusterer(BaseImageClusterer):
 
 
 class MiniBatchKMeansImageClusterer(BaseImageClusterer):
+    # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html
     _param_config = [
-        ('num_clusters'  , 'n_clusters'        , 'Number of clusters'   , 'spinbox' , 8       , (1, INT_MAX, 1)),
-        ('init_centers'  , 'init'              , 'Initial centers'      , 'dropdown', 'random', ('random', 'kmeans++')),
-        ('repeat_count'  , 'n_init'            , 'Number of runs'       , 'spinbox' , 10      , (1, INT_MAX, 1)),
-        ('max_iter'      , 'max_iter'          , 'Max interations'      , 'spinbox' , 300     , (1, INT_MAX, 1)),
-        ('tolerance'     , 'tol'               , 'Tolerance'            , 'slider'  , -4      , (-10, 10, 1)),
-        ('batch_size'    , 'batch_size'        , 'Batch Size'           , 'spinbox' , 100     , (1, INT_MAX, 1)),
-        ('iter_plateau'  , 'max_no_improvement', 'Max iteration plateau', 'spinbox' , 10      , (0, INT_MAX, 1)),
-        ('reassign_ratio', 'reassignment_ratio', 'Reassignment Ratio'   , 'spinbox' , 10      , (0, 1000, 1)),
-        ('verbose'       , 'verbose'           , 'Verbose Logging'      , 'checkbox', False   , None),
+        ('num_clusters'  , 'n_clusters'        , 'Number of clusters'   , 'spinbox' , 8       , (1, INT_MAX, 1)         ),
+        ('init_centers'  , 'init'              , 'Initial centers'      , 'dropdown', 'random', ('random', 'kmeans++')  ),
+        ('repeat_count'  , 'n_init'            , 'Number of runs'       , 'spinbox' , 10      , (1, INT_MAX, 1)         ),
+        ('max_iter'      , 'max_iter'          , 'Max interations'      , 'spinbox' , 300     , (1, INT_MAX, 1)         ),
+        ('tolerance'     , 'tol'               , 'Tolerance'            , 'slider'  , -4      , (-10, 10, 1)            ),
+        ('batch_size'    , 'batch_size'        , 'Batch Size'           , 'spinbox' , 100     , (1, INT_MAX, 1)         ),
+        ('iter_plateau'  , 'max_no_improvement', 'Max iteration plateau', 'spinbox' , 10      , (0, INT_MAX, 1)         ),
+        ('reassign_ratio', 'reassignment_ratio', 'Reassignment Ratio'   , 'spinbox' , 10      , (0, 1000, 1)            ),
+        ('verbose'       , 'verbose'           , 'Verbose Logging'      , 'checkbox', False   , None                    ),
     ]
 
     def __init__(self):
-        super().__init__(sklearn.cluster.MiniBatchKMeans, MiniBatchKMeansImageClusterer._param_config)
+        super().__init__(sklearn.cluster.MiniBatchKMeans, self._param_config)
 
 
     def run_clustering(self, cv_img, color_mode):

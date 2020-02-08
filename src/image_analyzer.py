@@ -29,7 +29,7 @@ IMG_CLUSTERERS = [
 def create_cluster_plot(cv_img, color_mode):
     color_centers, error = kmeans_image(cv_img, color_mode, 10)
     colored_centers = get_rgb_from(color_centers, color_mode) / 255
-    # color_centers = (color_centers * 255).astype(int)
+
     return gl.GLScatterPlotItem(
         pos=color_centers / 255 * 3, color=colored_centers,
         size=0.5, pxMode=not True,
@@ -257,8 +257,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
         self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False)
 
-        self.cropped_img_plot = ImagePlotter(title='Cropped Image', img=self.cv_img.RGB)
-
         self.roi.sigRegionChanged.connect(self.on_crop_modify)
         setup_axes_links(self.orig_img_plot, [self.channel_plot])
 
@@ -326,8 +324,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         grid_layout.addWidget(self.channel_plot, 0, 1)
         grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
-
-        grid_layout.addWidget(self.cropped_img_plot, 0, 2)
 
         self.settings_grid_layout = QtGui.QGridLayout()
 
@@ -436,8 +432,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_crop_modify(self):
         if self.apply_crop:
-            (x_min, y_min, x_max, y_max) = self.roi_bounds
-            self.cropped_img_plot.set_image(self.cv_img.RGB[y_min:y_max, x_min:x_max])
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
@@ -485,16 +479,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def on_run_clustering(self):
         if self.apply_cluster:
             with GuiBusyLock(self):
-                self.clusterer_controller.run_clustering(self.cv_img, self.color_mode)
+                try:
+                    (color_centers, color_labels, rgb_color_centers, cluster_error, num_iterations) = self.clusterer_controller.run_clustering(self.cv_img, self.color_mode)
+
+                except Exception as ex:
+                    print(ex)
+                    QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
 
 
     def on_img_modify(self):
-        if self.apply_crop:
-            (x_min, y_min, x_max, y_max) = self.roi_bounds
-            self.cropped_img_plot.set_image(self.cv_img.RGB[y_min:y_max, x_min:x_max])
-        else:
-            self.cropped_img_plot.set_image(self.cv_img.RGB)
-
         self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
         self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
