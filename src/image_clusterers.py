@@ -95,6 +95,7 @@ class BaseImageClusterer:
                 setting_widget.valueChanged.connect(on_slider_value_changed)
             elif param_gui_component == 'checkbox':
                 setting_widget = QtGui.QCheckBox()
+                setting_widget.setChecked(param_default_val)
 
                 gen_on_checkbox_value_changed = lambda pname: (lambda val: self.set_clustering_params({ pname: val }))
                 on_checkbox_value_changed = gen_on_checkbox_value_changed(param_name)
