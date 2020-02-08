@@ -200,4 +200,4 @@ class MiniBatchKMeansImageClusterer(BaseImageClusterer):
 
         return (color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations)
 
-        return (color_centers, color_labels, rgb_color_centers, cluster_error)
+
