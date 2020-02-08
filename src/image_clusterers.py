@@ -161,8 +161,9 @@ class KMeansImageClusterer(BaseImageClusterer):
         color_labels = cluster_results.labels_
         rgb_color_centers = get_rgb_from(color_centers, color_mode)
         cluster_error = cluster_results.inertia_
+        num_iterations = cluster_results.n_iter_
 
-        return (color_centers, color_labels, rgb_color_centers, cluster_error)
+        return (color_centers, color_labels, rgb_color_centers, cluster_error, num_iterations)
 
 
 class MiniBatchKMeansImageClusterer(BaseImageClusterer):
@@ -190,5 +191,8 @@ class MiniBatchKMeansImageClusterer(BaseImageClusterer):
         color_labels = cluster_results.labels_
         rgb_color_centers = get_rgb_from(color_centers, color_mode)
         cluster_error = cluster_results.inertia_
+        num_iterations = cluster_results.n_iter_
+
+        return (color_centers, color_labels, rgb_color_centers, cluster_error, num_iterations)
 
         return (color_centers, color_labels, rgb_color_centers, cluster_error)

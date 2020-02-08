@@ -526,8 +526,10 @@ if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         app = pg.mkQApp()
-        MainWindow = QtGui.QMainWindow()
+        with open('src/app.css') as fp:
+            app.setStyleSheet('\n'.join(fp.readlines()).strip())
 
+        MainWindow = QtGui.QMainWindow()
         gui = MyWindow()
         gui.load_image(DEFAULT_IMG_FILENAME)
         gui.setup_gui()
