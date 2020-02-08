@@ -201,3 +201,51 @@ class MiniBatchKMeansImageClusterer(BaseImageClusterer):
         return (color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations)
 
 
+class AffinityPropagationImageClusterer(BaseImageClusterer):
+    # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AffinityPropagation.html
+    _param_config = [
+        ('damping'      , 'damping'         , 'Damping Factor'       , 'slider'  , 50   , (50, 99, 1)       , lambda val: val / 100),
+        ('max_iter'     , 'max_iter'        , 'Max interations'      , 'spinbox' , 200  , (1, INT_MAX, 1)   , None),
+        ('converge_iter', 'convergence_iter', 'Max Convergence Iters', 'spinbox' , 15   , (1, INT_MAX, 1)   , None),
+        ('verbose'      , 'verbose'         , 'Verbose Logging'      , 'checkbox', False, None              , None),
+    ]
+
+    def __init__(self):
+        super().__init__(sklearn.cluster.AffinityPropagation, self._param_config)
+
+
+    def run_clustering(self, cv_img, color_mode):
+        cluster_results = super().run_clustering(cv_img, color_mode)
+
+        color_centers = cluster_results.cluster_centers_
+        color_labels = cluster_results.labels_
+        rgb_color_centers = get_rgb_from(color_centers, color_mode)
+        num_iterations = cluster_results.n_iter_
+
+        return (color_centers, color_labels, rgb_color_centers, -1, num_iterations)
+
+
+class MeanShiftImageClusterer(BaseImageClusterer):
+    # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MeanShift.html
+    _param_config = [
+        ('bandwidth'    , 'bandwidth'   , 'Bandwidth'            , 'spinbox' , -1   , (-1, INT_MAX, 1), lambda val: val if val > 0 else None),
+        ('bin_seeding'  , 'bin_seeding' , 'Binned Seeding'       , 'checkbox', False, None            , None),
+        ('min_bin_freq' , 'min_bin_freq', 'Minimum Bin Frequency', 'spinbox' , 1    , (1, INT_MAX, 1) , None),
+        ('cluster_all'  , 'cluster_all' , 'Cluster all'          , 'checkbox', True , None            , None),
+        ('num_jobs'     , 'n_jobs'      , 'Number of jobs'       , 'spinbox' , 1    , (1, NUM_CPUS, 1), None),
+        ('max_iter'     , 'max_iter'    , 'Max interations'      , 'spinbox' , 300  , (1, INT_MAX, 1) , None),
+    ]
+
+    def __init__(self):
+        super().__init__(sklearn.cluster.MeanShift, self._param_config)
+
+
+    def run_clustering(self, cv_img, color_mode):
+        cluster_results = super().run_clustering(cv_img, color_mode)
+
+        color_centers = cluster_results.cluster_centers_
+        color_labels = cluster_results.labels_
+        rgb_color_centers = get_rgb_from(color_centers, color_mode)
+        num_iterations = cluster_results.n_iter_
+
+        return (color_centers, color_labels, rgb_color_centers, -1, num_iterations)
