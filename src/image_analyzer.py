@@ -18,6 +18,7 @@ from image_clusterers import *
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
+MAX_PIXELS = 10 ** 6
 
 
 CLUSTER_ALGORITHMS = {
@@ -228,7 +229,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         return pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=self.roi_bounds, thresh_bounds=self.thresh_bounds)
 
 
-    def load_image(self, img_path, max_pixels=1000000):
+    def load_image(self, img_path, max_pixels=MAX_PIXELS):
         with GuiBusyLock(self):
             input_img = cv2.imread(img_path)
 
