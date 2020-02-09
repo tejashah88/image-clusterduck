@@ -44,7 +44,7 @@ IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
 def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=3):
     return gl.GLScatterPlotItem(
         pos=color_centers / 255 * scale_factor, color=rgb_colored_centers / 255,
-        size=0.5, pxMode=not True,
+        size=0.75, pxMode=not True,
         glOptions='opaque'
     )
 
