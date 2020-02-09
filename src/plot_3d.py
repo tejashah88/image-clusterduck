@@ -39,6 +39,12 @@ class Plot3D(gl.GLViewWidget):
             self.addItem(self.cplt_item)
 
 
+    def remove_cluster_plot(self):
+        if self.cplt_item is not None:
+            self.removeItem(self.cplt_item)
+            self.cplt_item = None
+
+
     def enable_axes(self, axis_length=3):
         if self.axes_item is None:
             # x = blue, y = yellow, z = green

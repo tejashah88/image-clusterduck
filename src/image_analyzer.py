@@ -260,7 +260,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_roi=True)
         self.roi = self.orig_img_plot.roi_item
         self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot)
-        # self.glvw_color_vis.set_cluster_plot(create_cluster_plot(self.cv_img, self.color_mode))
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
         self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False)
@@ -361,7 +360,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.cluster_settings_widget.setEnabled(False)
         self.settings_grid_layout.addWidget(self.cluster_settings_widget, 8, 0, 1, 2)
 
-        self.settings_grid_layout.addWidget(self.run_clustering_button, 9, 1)
+        self.settings_grid_layout.addWidget(self.run_clustering_button, 9, 0, 1, 2)
         self.settings_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
 
         options_widget = QtGui.QWidget()
@@ -398,6 +397,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.cs_index = cspace_index
 
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+            self.glvw_color_vis.remove_cluster_plot()
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
             self.channel_cbox.clear()
