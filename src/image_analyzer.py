@@ -109,7 +109,6 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
     channel_arr = converted_img[:, :, ch_index]
 
     thresh_indicies = ( (channel_arr < lower_ch) | (channel_arr > upper_ch) )
-    rgb_img[thresh_indicies] = 0
     r_arr[thresh_indicies] = 0
     c_arr[thresh_indicies] = 0
     channel_arr[thresh_indicies] = 0
@@ -120,7 +119,6 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
     row_array = (r_arr.flatten() - rows // 2) * scaled_dim
     col_array = (c_arr.flatten() - cols // 2) * scaled_dim
     ch_array = channel_arr.flatten() * scaled_z
-    pos_arr = np.vstack( (row_array, col_array, ch_array) ).T
 
     pos_arr = np.vstack( (row_array, col_array, ch_array) ).T
     color_arr = rgb_img.reshape(-1, 3) / 255
