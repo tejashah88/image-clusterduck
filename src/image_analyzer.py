@@ -1,4 +1,5 @@
 import os
+import traceback
 
 import numpy as np
 import cv2
@@ -484,11 +485,11 @@ class MyWindow(pg.GraphicsLayoutWidget):
         if self.apply_cluster:
             with GuiBusyLock(self):
                 try:
-                    (color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations) = self.clusterer_controller.run_clustering(self.cv_img, self.color_mode)
-                    self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
-                except Exception as ex:
-                    print(ex)
-                    QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
+                self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
+            except Exception as ex:
+                stacktrace = ''.join(traceback.format_tb(ex.__traceback__))
+                print(f'{ex}\n{stacktrace}')
+                QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
 
 
     def on_img_modify(self):
