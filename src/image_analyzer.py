@@ -160,7 +160,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_crop = False
         self.apply_thresh = False
         self.apply_cluster = False
-        self.apply_hist = False
 
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
 
@@ -292,10 +291,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_cluster_box.setChecked(self.apply_cluster)
         self.apply_cluster_box.toggled.connect(self.on_apply_cluster_toggle)
 
-        self.apply_hist_box = QtGui.QCheckBox('Show Histograms')
-        self.apply_hist_box.setChecked(self.apply_hist)
-        self.apply_hist_box.toggled.connect(self.on_apply_hist_toggle)
-
         # Setup clustering algorithm combo box
         self.cluster_cbox = QtGui.QComboBox()
         self.cluster_cbox.addItems(ALL_CLUSTER_ALGORITHMS)
@@ -347,7 +342,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.settings_grid_layout.addWidget(thresh_slider, thresh_row_offset + i, 1)
 
         self.settings_grid_layout.addWidget(self.apply_cluster_box, 6, 0)
-        self.settings_grid_layout.addWidget(self.apply_hist_box, 6, 1)
 
         self.settings_grid_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 7, 0)
         self.settings_grid_layout.addWidget(self.cluster_cbox, 7, 1)
@@ -474,12 +468,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.run_clustering_button.setEnabled(self.apply_cluster)
 
         self.on_img_modify()
-
-
-    def on_apply_hist_toggle(self, should_apply_hist):
-        self.apply_hist = should_apply_hist
-        self.on_img_modify()
-
 
     def on_run_clustering(self):
         if self.apply_cluster:
