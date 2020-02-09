@@ -159,7 +159,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.apply_crop = False
         self.apply_thresh = False
-        self.apply_cluster = False
 
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
 
@@ -287,16 +286,11 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
 
-        self.apply_cluster_box = QtGui.QCheckBox('Apply Clustering')
-        self.apply_cluster_box.setChecked(self.apply_cluster)
-        self.apply_cluster_box.toggled.connect(self.on_apply_cluster_toggle)
-
         # Setup clustering algorithm combo box
         self.cluster_cbox = QtGui.QComboBox()
         self.cluster_cbox.addItems(ALL_CLUSTER_ALGORITHMS)
         self.cluster_cbox.setCurrentIndex(self.cluster_index)
         self.cluster_cbox.currentIndexChanged.connect(self.on_cluster_algo_change)
-        self.cluster_cbox.setEnabled(False)
 
         # Setup thresholding sliders for all channels
         self.all_channel_thresh_sliders = []
@@ -311,7 +305,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup cluster calculating button
         self.run_clustering_button = QtGui.QPushButton('Run Clustering')
-        self.run_clustering_button.setEnabled(False)
         self.run_clustering_button.clicked.connect(self.on_run_clustering)
 
         # Setup widgets according to given grid layout
@@ -341,7 +334,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.settings_grid_layout.addWidget(channel_label, thresh_row_offset + i, 0)
             self.settings_grid_layout.addWidget(thresh_slider, thresh_row_offset + i, 1)
 
-        self.settings_grid_layout.addWidget(self.apply_cluster_box, 6, 0)
 
         self.settings_grid_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 7, 0)
         self.settings_grid_layout.addWidget(self.cluster_cbox, 7, 1)
@@ -351,7 +343,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.cluster_settings_widget = QtGui.QWidget()
         self.cluster_settings_widget.setLayout(cluster_settings_layout)
-        self.cluster_settings_widget.setEnabled(False)
         self.settings_grid_layout.addWidget(self.cluster_settings_widget, 8, 0, 1, 2)
 
         self.settings_grid_layout.addWidget(self.run_clustering_button, 9, 0, 1, 2)
@@ -426,7 +417,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         old_widget = self.cluster_settings_widget
         self.cluster_settings_widget = QtGui.QWidget()
         self.cluster_settings_widget.setLayout(cluster_settings_layout)
-        self.cluster_settings_widget.setEnabled(self.apply_cluster)
 
         self.settings_grid_layout.replaceWidget(old_widget, self.cluster_settings_widget)
         QtCore.QObjectCleanupHandler().add(old_widget)
@@ -461,18 +451,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.on_img_modify()
 
 
-    def on_apply_cluster_toggle(self, should_apply_cluster):
-        self.apply_cluster = should_apply_cluster
-        self.cluster_cbox.setEnabled(self.apply_cluster)
-        self.cluster_settings_widget.setEnabled(self.apply_cluster)
-        self.run_clustering_button.setEnabled(self.apply_cluster)
-
-        self.on_img_modify()
-
     def on_run_clustering(self):
-        if self.apply_cluster:
-            with GuiBusyLock(self):
-                try:
+        with GuiBusyLock(self):
+            try:
+                (color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations) = self.clusterer_controller.run_clustering(self.cv_img, self.color_mode)
                 self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
             except Exception as ex:
                 stacktrace = ''.join(traceback.format_tb(ex.__traceback__))
