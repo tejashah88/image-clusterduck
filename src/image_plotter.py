@@ -34,7 +34,7 @@ class ImagePlotter(pg.PlotWidget):
             self.enable_roi_rect()
 
 
-    def set_image(self, img):
+    def set_image(self, img, auto_range=True):
         self.img = img
 
         if self.img_item is not None:
@@ -50,7 +50,8 @@ class ImagePlotter(pg.PlotWidget):
             self.img_item.mousePressEvent = self.on_pixel_select
 
         # Resize the plot so that it fits the whole image
-        self.autoRange()
+        if auto_range:
+            self.autoRange()
 
         # Flip image to match with image coordinates
         self.invertY()

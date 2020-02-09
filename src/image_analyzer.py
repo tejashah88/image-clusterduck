@@ -457,7 +457,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
-            self.channel_plot.set_image(self.curr_image_slice)
+            self.channel_plot.set_image(self.curr_image_slice, auto_range=False)
 
 
     def on_apply_crop_toggle(self, should_apply_crop):
@@ -500,7 +500,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def on_img_modify(self):
         self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
         self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
-        self.channel_plot.set_image(self.curr_image_slice)
+        self.channel_plot.set_image(self.curr_image_slice, auto_range=False)
 
 
     def setup_menubar(self, main_window):
