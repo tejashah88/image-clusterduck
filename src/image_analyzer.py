@@ -70,11 +70,14 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, sc
         channel_arr = converted_img[:, :, ch_index]
 
         thresh_indicies = ( (channel_arr < lower_ch) | (channel_arr > upper_ch) )
-        rgb_img[thresh_indicies] = 0
-        channel_arr[thresh_indicies] = 0
+        converted_img[thresh_indicies] = 0
 
     pos_arr = converted_img.reshape(-1, 3) / 255 * scale_factor
     color_arr = rgb_img.reshape(-1, 3) / 255
+
+    non_zero_pixels = np.all(pos_arr != 0, axis=1)
+    pos_arr = pos_arr[non_zero_pixels]
+    color_arr = color_arr[non_zero_pixels]
 
     return gl.GLScatterPlotItem(
         pos=pos_arr, color=color_arr,
@@ -119,7 +122,12 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
     ch_array = channel_arr.flatten() * scaled_z
     pos_arr = np.vstack( (row_array, col_array, ch_array) ).T
 
+    pos_arr = np.vstack( (row_array, col_array, ch_array) ).T
     color_arr = rgb_img.reshape(-1, 3) / 255
+
+    non_zero_pixels = np.all(pos_arr != 0, axis=1)
+    pos_arr = pos_arr[non_zero_pixels]
+    color_arr = color_arr[non_zero_pixels]
 
     return gl.GLScatterPlotItem(
         pos=pos_arr, color=color_arr,
