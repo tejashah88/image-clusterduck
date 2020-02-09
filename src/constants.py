@@ -4,10 +4,10 @@ IMPLEMENTED_COLOR_SPACES = ['RGB', 'BGR', 'YUV', 'YCrCb', 'LAB', 'LUV', 'HLS', '
 
 COLOR_SPACE_LABELS = {
     'RGB': ('Red', 'Green', 'Blue'),
-    'YUV': ('Luma (Brightness)', 'U (blue projection)', 'V (red projection)'),
-    'YCrCb': ('Luma (Brightness)', 'Cr (Red from Luma)', 'Cb (Blue from Luma)'),
-    'LAB': ('Lightness', 'A (Green to Red)', 'B (Blue to Yellow)'),
-    'LUV': ('L (Brightness)', 'U', 'V'),
+    'YUV': ('Luma', 'U', 'V'),
+    'YCrCb': ('Luma', 'Cr', 'Cb'),
+    'LAB': ('Lightness', 'A', 'B'),
+    'LUV': ('L', 'U', 'V'),
     'HLS': ('Hue', 'Lightness', 'Saturation'),
     'HSV': ('Hue', 'Saturation', 'Value'),
     'XYZ': ('X', 'Y', 'Z'),

@@ -11,6 +11,7 @@ import sklearn.cluster
 
 from constants import *
 from cv_img import CvImg
+from qtrangeslider import QRangeSlider
 from image_plotter import ImagePlotter
 from plot_3d import Plot3D
 from gui_busy_lock import GuiBusyLock
@@ -47,7 +48,7 @@ def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=3):
     )
 
 
-def img_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=3):
+def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, scale_factor=3):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -60,14 +61,16 @@ def img_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bound
     rgb_img = rgb_img[y_min:y_max, x_min:x_max]
     converted_img = converted_img[y_min:y_max, x_min:x_max]
 
-    if thresh_bounds is not None:
-        lower_ch, upper_ch = thresh_bounds
-    else:
-        lower_ch, upper_ch = (0, 255)
+    if thresh_bounds is None:
+        thresh_bounds = [(0, 255), (0, 255), (0, 255)]
 
-    channel_arr = converted_img[:, :, ch_index]
-    rgb_img[( (channel_arr < lower_ch) | (channel_arr > upper_ch) )] = 0
-    channel_arr[( (channel_arr < lower_ch) | (channel_arr > upper_ch) )] = 0
+    for (ch_index, bounds) in enumerate(thresh_bounds):
+        lower_ch, upper_ch = bounds
+        channel_arr = converted_img[:, :, ch_index]
+
+        thresh_indicies = ( (channel_arr < lower_ch) | (channel_arr > upper_ch) )
+        rgb_img[thresh_indicies] = 0
+        channel_arr[thresh_indicies] = 0
 
     pos_arr = converted_img.reshape(-1, 3) / 255 * scale_factor
     color_arr = rgb_img.reshape(-1, 3) / 255
@@ -93,7 +96,7 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
     converted_img = converted_img[y_min:y_max, x_min:x_max]
 
     if thresh_bounds is not None:
-        lower_ch, upper_ch = thresh_bounds
+        lower_ch, upper_ch = thresh_bounds[ch_index]
     else:
         lower_ch, upper_ch = (0, 255)
 
@@ -158,8 +161,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_cluster = False
         self.apply_hist = False
 
-        self.lower_thresh = 0
-        self.upper_thresh = 255
+        self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
 
 
     @property
@@ -210,23 +212,18 @@ class MyWindow(pg.GraphicsLayoutWidget):
     @property
     def thresh_bounds(self):
         if self.apply_thresh:
-            return (self.lower_thresh, self.upper_thresh)
+            return self.channel_thresholds[self.ch_index]
         return None
-
-
-    @thresh_bounds.setter
-    def thresh_bounds(self, val):
-        self.lower_thresh, self.upper_thresh = val
 
 
     @property
     def curr_img_scatterplot(self):
-        return img_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=self.roi_bounds, thresh_bounds=self.thresh_bounds)
+        return img_scatterplot(self.cv_img, self.color_mode, crop_bounds=self.roi_bounds, thresh_bounds=self.channel_thresholds)
 
 
     @property
     def curr_pos_color_scatterplot(self):
-        return pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=self.roi_bounds, thresh_bounds=self.thresh_bounds)
+        return pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=self.roi_bounds, thresh_bounds=self.channel_thresholds)
 
 
     def load_image(self, img_path, max_pixels=MAX_PIXELS):
@@ -306,20 +303,16 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.cluster_cbox.currentIndexChanged.connect(self.on_cluster_algo_change)
         self.cluster_cbox.setEnabled(False)
 
-        # Setup thresholding sliders based on current channel
-        self.channel_lower_thresh_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.channel_lower_thresh_slider.setMinimum(0)
-        self.channel_lower_thresh_slider.setMaximum(255)
-        self.channel_lower_thresh_slider.setValue(0)
-        self.channel_lower_thresh_slider.setEnabled(False)
-        self.channel_lower_thresh_slider.valueChanged.connect(lambda lower_val: self.on_thresh_change('lower', lower_val))
-
-        self.channel_upper_thresh_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.channel_upper_thresh_slider.setMinimum(0)
-        self.channel_upper_thresh_slider.setMaximum(255)
-        self.channel_upper_thresh_slider.setValue(255)
-        self.channel_upper_thresh_slider.setEnabled(False)
-        self.channel_upper_thresh_slider.valueChanged.connect(lambda upper_val: self.on_thresh_change('upper', upper_val))
+        # Setup thresholding sliders for all channels
+        self.all_channel_thresh_sliders = []
+        channel_thresh_value_changed = lambda i: (lambda lower, upper: self.on_thresh_change(i, lower, upper))
+        for i in range(3):
+            channel_thresh_slider = QRangeSlider(QtCore.Qt.Horizontal)
+            channel_thresh_slider.range = (0, 255)
+            channel_thresh_slider.values = (0, 255)
+            channel_thresh_slider.setEnabled(False)
+            channel_thresh_slider.valueChanged.connect(channel_thresh_value_changed(i))
+            self.all_channel_thresh_sliders += [channel_thresh_slider]
 
         # Setup cluster calculating button
         self.run_clustering_button = QtGui.QPushButton('Run Clustering')
@@ -345,16 +338,19 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.settings_grid_layout.addWidget(self.apply_crop_box, 2, 0)
         self.settings_grid_layout.addWidget(self.apply_thresh_box, 2, 1)
 
-        self.settings_grid_layout.addWidget(QtGui.QLabel('Lower Threshold:'), 3, 0)
-        self.settings_grid_layout.addWidget(self.channel_lower_thresh_slider, 3, 1)
-        self.settings_grid_layout.addWidget(QtGui.QLabel('Upper Threshold:'), 4, 0)
-        self.settings_grid_layout.addWidget(self.channel_upper_thresh_slider, 4, 1)
+        thresh_row_offset = 3
+        self.all_channel_labels = []
+        for (i, thresh_slider) in enumerate(self.all_channel_thresh_sliders):
+            channel_label = QtGui.QLabel(f'Threshold ({COLOR_SPACE_LABELS[self.color_mode][i]}):')
+            self.all_channel_labels += [channel_label]
+            self.settings_grid_layout.addWidget(channel_label, thresh_row_offset + i, 0)
+            self.settings_grid_layout.addWidget(thresh_slider, thresh_row_offset + i, 1)
 
-        self.settings_grid_layout.addWidget(self.apply_cluster_box, 5, 0)
-        self.settings_grid_layout.addWidget(self.apply_hist_box, 5, 1)
+        self.settings_grid_layout.addWidget(self.apply_cluster_box, 6, 0)
+        self.settings_grid_layout.addWidget(self.apply_hist_box, 6, 1)
 
-        self.settings_grid_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 6, 0)
-        self.settings_grid_layout.addWidget(self.cluster_cbox, 6, 1)
+        self.settings_grid_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 7, 0)
+        self.settings_grid_layout.addWidget(self.cluster_cbox, 7, 1)
 
         self.clusterer_controller = IMG_CLUSTERERS[self.cluster_index]
         cluster_settings_layout = self.clusterer_controller.setup_settings_layout()
@@ -362,10 +358,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.cluster_settings_widget = QtGui.QWidget()
         self.cluster_settings_widget.setLayout(cluster_settings_layout)
         self.cluster_settings_widget.setEnabled(False)
-        self.settings_grid_layout.addWidget(self.cluster_settings_widget, 7, 0, 1, 2)
+        self.settings_grid_layout.addWidget(self.cluster_settings_widget, 8, 0, 1, 2)
 
-        self.settings_grid_layout.addWidget(self.run_clustering_button, 8, 1)
-
+        self.settings_grid_layout.addWidget(self.run_clustering_button, 9, 1)
         self.settings_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
 
         options_widget = QtGui.QWidget()
@@ -407,6 +402,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.channel_cbox.clear()
             self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
 
+            for (i, channel_label) in enumerate(self.all_channel_labels):
+                channel_label.setText(f'Threshold ({COLOR_SPACE_LABELS[self.color_mode][i]}):')
+
             self.on_channel_view_change(self.ch_index)
 
 
@@ -446,14 +444,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
 
 
-    def on_thresh_change(self, thresh_type, thresh_val):
+    def on_thresh_change(self, thresh_ch_index, lower_val, upper_val):
         if self.apply_thresh:
-            if thresh_type == 'lower':
-                self.lower_thresh = thresh_val
-            elif thresh_type == 'upper':
-                self.upper_thresh = thresh_val
-            else:
-                raise Exception(f'Unknown threshold type given: {thresh_type}')
+            self.channel_thresholds[thresh_ch_index] = (lower_val, upper_val)
 
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
@@ -467,8 +460,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_apply_thresh_toggle(self, should_apply_thresh):
         self.apply_thresh = should_apply_thresh
-        self.channel_lower_thresh_slider.setEnabled(self.apply_thresh)
-        self.channel_upper_thresh_slider.setEnabled(self.apply_thresh)
+        for thresh_slider in self.all_channel_thresh_sliders:
+            thresh_slider.setEnabled(self.apply_thresh)
+
         self.on_img_modify()
 
 
