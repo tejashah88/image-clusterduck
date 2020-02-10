@@ -276,6 +276,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
         if self.cv_img is None:
             raise Exception('Error: Image has not been loaded yet! Please call load_image() before calling setup_gui()')
 
+        # Setup widgets according to grid layout
+        self.main_grid_layout = QtGui.QGridLayout()
+
         # Setup main plots
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True)
         self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot)
@@ -283,7 +286,43 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
         self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False)
 
+        # Tie the axes bewteen the original image plot and the channel sliced image plot
         setup_axes_links(self.orig_img_plot, [self.channel_plot])
+
+        # Layout main plots
+        self.main_grid_layout.addWidget(self.orig_img_plot, 0, 0)
+        self.main_grid_layout.addWidget(self.glvw_color_vis, 1, 0)
+
+        self.main_grid_layout.addWidget(self.channel_plot, 0, 1)
+        self.main_grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
+
+        # Setup data/settings tabs
+        self.info_tabs = QtGui.QTabWidget()
+        self.general_data_tab = QtGui.QWidget()
+        self.general_settings_tab = QtGui.QWidget()
+        self.cluster_settings_tab = QtGui.QWidget()
+
+        self.info_tabs.addTab(self.general_data_tab, "Data")
+        self.info_tabs.addTab(self.general_settings_tab, "Settings")
+        self.info_tabs.addTab(self.cluster_settings_tab, "Clustering")
+
+        # Lay everything out for general data tab
+        self.general_data_layout = QtGui.QGridLayout()
+
+        self.crosshair_info = QtGui.QLabel()
+        show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, lambda x, y, color: self.crosshair_info.setText(f'({x}, {y}, {color})'))
+        self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
+        self.general_data_layout.addWidget(self.crosshair_info, 0, 0, 1, 2)
+
+        # Add dummy label widget to squish all widgets to the top
+        self.general_data_layout.addWidget(QtGui.QLabel(''), 1, 0, 999, 2)
+
+        # Place all general data widgets in "Data" tab
+        self.general_data_tab.setLayout(self.general_data_layout)
+
+
+        # Lay everything out for general settings tab
+        self.general_settings_layout = QtGui.QGridLayout()
 
         # Setup color space combo box
         self.color_space_cbox = QtGui.QComboBox()
@@ -291,20 +330,60 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.color_space_cbox.setCurrentIndex(self.cs_index)
         self.color_space_cbox.currentIndexChanged.connect(self.on_color_space_change)
 
+        self.general_settings_layout.addWidget(QtGui.QLabel('Color Space:'), 0, 0)
+        self.general_settings_layout.addWidget(self.color_space_cbox, 0, 1)
+
         # Setup channel combo box
         self.channel_cbox = QtGui.QComboBox()
         self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
         self.channel_cbox.setCurrentIndex(self.ch_index)
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
-        # Setup crop, thresholding, clustering, and histogram checkboxes
+        self.general_settings_layout.addWidget(QtGui.QLabel('Channel:'), 1, 0)
+        self.general_settings_layout.addWidget(self.channel_cbox, 1, 1)
+
+        # Setup cropping checkbox
         self.apply_crop_box = QtGui.QCheckBox('Apply Cropping')
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
+        self.general_settings_layout.addWidget(self.apply_crop_box, 2, 0)
 
+        # Setup thresholding checkbox
         self.apply_thresh_box = QtGui.QCheckBox('Apply Thresholding')
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
+        self.general_settings_layout.addWidget(self.apply_thresh_box, 2, 1)
+
+        # Setup thresholding sliders for all channels
+        thresh_row_offset = 3
+        self.all_channel_thresh_sliders = []
+        self.all_channel_labels = []
+        channel_thresh_value_changed = lambda i: (lambda lower, upper: self.on_thresh_change(i, lower, upper))
+
+        for i in range(3):
+            # Setup thresholding channel label
+            channel_label = QtGui.QLabel(f'Threshold ({COLOR_SPACE_LABELS[self.color_mode][i]}):')
+            self.general_settings_layout.addWidget(channel_label, thresh_row_offset + i, 0)
+            self.all_channel_labels += [channel_label]
+
+            # Setup thresholding channel range slider
+            channel_thresh_slider = QRangeSlider(QtCore.Qt.Horizontal)
+            channel_thresh_slider.range = (0, 255)
+            channel_thresh_slider.values = (0, 255)
+            channel_thresh_slider.setEnabled(False)
+            channel_thresh_slider.valueChanged.connect(channel_thresh_value_changed(i))
+            self.general_settings_layout.addWidget(channel_thresh_slider, thresh_row_offset + i, 1)
+            self.all_channel_thresh_sliders += [channel_thresh_slider]
+
+        # Add dummy label widget to squish all widgets to the top
+        self.general_settings_layout.addWidget(QtGui.QLabel(''), 6, 0, 999, 2)
+
+        # Place all general settings widgets in "Settings" tab
+        self.general_settings_tab.setLayout(self.general_settings_layout)
+
+
+        # Lay everything out for clustering settings tab
+        self.clustering_settings_layout = QtGui.QGridLayout()
 
         # Setup clustering algorithm combo box
         self.cluster_cbox = QtGui.QComboBox()
@@ -312,74 +391,34 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.cluster_cbox.setCurrentIndex(self.cluster_index)
         self.cluster_cbox.currentIndexChanged.connect(self.on_cluster_algo_change)
 
-        # Setup thresholding sliders for all channels
-        self.all_channel_thresh_sliders = []
-        channel_thresh_value_changed = lambda i: (lambda lower, upper: self.on_thresh_change(i, lower, upper))
-        for i in range(3):
-            channel_thresh_slider = QRangeSlider(QtCore.Qt.Horizontal)
-            channel_thresh_slider.range = (0, 255)
-            channel_thresh_slider.values = (0, 255)
-            channel_thresh_slider.setEnabled(False)
-            channel_thresh_slider.valueChanged.connect(channel_thresh_value_changed(i))
-            self.all_channel_thresh_sliders += [channel_thresh_slider]
+        self.clustering_settings_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 0, 0)
+        self.clustering_settings_layout.addWidget(self.cluster_cbox, 0, 1)
 
-        # Setup cluster calculating button
-        self.run_clustering_button = QtGui.QPushButton('Run Clustering')
-        self.run_clustering_button.clicked.connect(self.on_run_clustering)
-
-        # Setup widgets according to given grid layout
-        grid_layout = QtGui.QGridLayout()
-
-        grid_layout.addWidget(self.orig_img_plot, 0, 0)
-        grid_layout.addWidget(self.glvw_color_vis, 1, 0)
-
-        grid_layout.addWidget(self.channel_plot, 0, 1)
-        grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
-
-        self.settings_grid_layout = QtGui.QGridLayout()
-
-        self.settings_grid_layout.addWidget(QtGui.QLabel('Color Space:'), 0, 0)
-        self.settings_grid_layout.addWidget(self.color_space_cbox, 0, 1)
-        self.settings_grid_layout.addWidget(QtGui.QLabel('Channel:'), 1, 0)
-        self.settings_grid_layout.addWidget(self.channel_cbox, 1, 1)
-
-        self.settings_grid_layout.addWidget(self.apply_crop_box, 2, 0)
-        self.settings_grid_layout.addWidget(self.apply_thresh_box, 2, 1)
-
-        thresh_row_offset = 3
-        self.all_channel_labels = []
-        for (i, thresh_slider) in enumerate(self.all_channel_thresh_sliders):
-            channel_label = QtGui.QLabel(f'Threshold ({COLOR_SPACE_LABELS[self.color_mode][i]}):')
-            self.all_channel_labels += [channel_label]
-            self.settings_grid_layout.addWidget(channel_label, thresh_row_offset + i, 0)
-            self.settings_grid_layout.addWidget(thresh_slider, thresh_row_offset + i, 1)
-
-        self.crosshair_info = QtGui.QLabel()
-        show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, lambda x, y, color: self.crosshair_info.setText(f'({x}, {y}, {color})'))
-        self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
-        self.settings_grid_layout.addWidget(self.crosshair_info, 6, 0, 1, 2)
-
-        self.settings_grid_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 7, 0)
-        self.settings_grid_layout.addWidget(self.cluster_cbox, 7, 1)
-
+        # Setup the cluster sub-settings widgets
         self.clusterer_controller = IMG_CLUSTERERS[self.cluster_index]
-        cluster_settings_layout = self.clusterer_controller.setup_settings_layout()
+        cluster_sub_settings_layout = self.clusterer_controller.setup_settings_layout()
 
         self.cluster_settings_widget = QtGui.QWidget()
-        self.cluster_settings_widget.setLayout(cluster_settings_layout)
-        self.settings_grid_layout.addWidget(self.cluster_settings_widget, 8, 0, 1, 2)
+        self.cluster_settings_widget.setLayout(cluster_sub_settings_layout)
+        self.clustering_settings_layout.addWidget(self.cluster_settings_widget, 1, 0, 1, 2)
 
-        self.settings_grid_layout.addWidget(self.run_clustering_button, 9, 0, 1, 2)
-        self.settings_grid_layout.addWidget(QtGui.QLabel(''), 99, 0)
+        # Setup clustering button
+        self.run_clustering_button = QtGui.QPushButton('Run Clustering')
+        self.run_clustering_button.clicked.connect(self.on_run_clustering)
+        self.clustering_settings_layout.addWidget(self.run_clustering_button, 2, 0, 1, 2)
 
-        options_widget = QtGui.QWidget()
-        options_widget.setLayout(self.settings_grid_layout)
+        # Add dummy label widget to squish all widgets to the top
+        self.clustering_settings_layout.addWidget(QtGui.QLabel(''), 3, 0, 999, 2)
 
-        grid_layout.addWidget(options_widget, 1, 2)
+        # Place all cluster settings widgets in "Clustering" tab
+        self.cluster_settings_tab.setLayout(self.clustering_settings_layout)
+
+        # Add the tabs into the main layout
+        self.main_grid_layout.addWidget(self.info_tabs, 1, 2)
 
         # Set the layout and resize the window accordingly
-        self.setLayout(grid_layout)
-        self.resize(grid_layout.sizeHint() + QtCore.QSize(10, 30))
+        self.setLayout(self.main_grid_layout)
+        self.resize(self.main_grid_layout.sizeHint() + QtCore.QSize(10, 30))
 
 
     def bind_to_main_window(self, main_window):
