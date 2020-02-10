@@ -41,6 +41,17 @@ ALL_CLUSTER_ALGORITHMS = list(CLUSTER_ALGORITHMS.keys())
 IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
 
 
+def process_img_plot_mouse_event(img_plot, fn):
+    def handle_mouse_event(mouse_pos):
+        if img_plot.sceneBoundingRect().contains(mouse_pos):
+            mouse_point = img_plot.getViewBox().mapSceneToView(mouse_pos)
+            (mouse_x, mouse_y) = int(mouse_point.x()), int(mouse_point.y())
+            (height, width) = img_plot.img.shape[:2]
+            if (0 <= mouse_y and mouse_y < height) and (0 <= mouse_x and mouse_x < width):
+                return fn(mouse_x, mouse_y, img_plot.img[mouse_y, mouse_x])
+    return handle_mouse_event
+
+
 def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=3):
     return gl.GLScatterPlotItem(
         pos=color_centers / 255 * scale_factor, color=rgb_colored_centers / 255,
@@ -340,6 +351,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.settings_grid_layout.addWidget(channel_label, thresh_row_offset + i, 0)
             self.settings_grid_layout.addWidget(thresh_slider, thresh_row_offset + i, 1)
 
+        self.crosshair_info = QtGui.QLabel()
+        show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, lambda x, y, color: self.crosshair_info.setText(f'({x}, {y}, {color})'))
+        self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
+        self.settings_grid_layout.addWidget(self.crosshair_info, 6, 0, 1, 2)
 
         self.settings_grid_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 7, 0)
         self.settings_grid_layout.addWidget(self.cluster_cbox, 7, 1)
