@@ -364,8 +364,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Place all general data widgets in "Data" tab
         self.general_data_tab.setLayout(self.general_data_layout)
 
-
-        # Lay everything out for general settings tab
+        # Lay everything out for general settings/data tab
         self.general_settings_layout = QtGui.QGridLayout()
 
         # Setup color space combo box
@@ -387,19 +386,21 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.general_settings_layout.addWidget(self.channel_cbox, 1, 1)
 
         # Setup cropping checkbox
-        self.apply_crop_box = QtGui.QCheckBox('Apply Cropping')
+        self.apply_crop_box = QtGui.QCheckBox()
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
-        self.general_settings_layout.addWidget(self.apply_crop_box, 2, 0)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Cropping:'), 2, 0)
+        self.general_settings_layout.addWidget(self.apply_crop_box, 2, 1)
 
         # Setup thresholding checkbox
-        self.apply_thresh_box = QtGui.QCheckBox('Apply Thresholding')
+        self.apply_thresh_box = QtGui.QCheckBox()
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
-        self.general_settings_layout.addWidget(self.apply_thresh_box, 2, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Thresholding:'), 3, 0)
+        self.general_settings_layout.addWidget(self.apply_thresh_box, 3, 1)
 
         # Setup thresholding sliders for all channels
-        thresh_row_offset = 3
+        thresh_row_offset = 4
         self.all_channel_thresh_sliders = []
         self.all_channel_labels = []
         channel_thresh_value_changed = lambda i: (lambda lower, upper: self.on_thresh_change(i, lower, upper))

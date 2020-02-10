@@ -9,10 +9,11 @@ SC_SLIDER_BAR_HEIGHT = 3
 SC_LEFT_RIGHT_MARGIN = 1
 
 
-BG_COLOR_ENABLED = QtGui.QColor('#58bef4')
-BG_COLOR_DISABLED = QtGui.QColor('#4b535a')
-OUTLINE_RECT_COLOR = QtGui.QColor('#393d41')
-HANDLE_COLOR = QtGui.QColor('#484d52')
+BG_COLOR_ENABLED     = QtGui.QColor('#3daee9')
+BG_COLOR_DISABLED    = QtGui.QColor('#4b535a')
+OUTLINE_RECT_COLOR   = QtGui.QColor('#393d41')
+HANDLE_COLOR         = QtGui.QColor('#464b50')
+HANDLE_OUTLINE_COLOR = QtGui.QColor('#23272a')
 
 
 class HandleOption:
@@ -52,13 +53,14 @@ class QRangeSlider(QtGui.QWidget):
         else:
             bg_rect = QtCore.QRectF((self.width() - SC_SLIDER_BAR_HEIGHT) / 2, SC_LEFT_RIGHT_MARGIN, SC_SLIDER_BAR_HEIGHT, self.height() - SC_LEFT_RIGHT_MARGIN*2)
 
-        painter.setPen(QtCore.Qt.NoPen)
+        painter.setPen(QtGui.QPen(QtCore.Qt.black, 0.8))
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setBrush(QtGui.QBrush(OUTLINE_RECT_COLOR))
         painter.drawRoundedRect(bg_rect, 1, 1)
+        painter.fillRect(bg_rect, QtGui.QBrush(OUTLINE_RECT_COLOR))
 
         # First value handle rect
-        pen = QtGui.QPen(QtCore.Qt.darkGray, 0.8)
+        pen = QtGui.QPen(HANDLE_OUTLINE_COLOR, 0.8)
         painter.setPen(pen)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setBrush(QtGui.QBrush(HANDLE_COLOR))
@@ -298,12 +300,32 @@ if __name__ == "__main__":
         MainWindow = QtGui.QMainWindow()
 
         widget = QtGui.QWidget(MainWindow)
-        rsH = RangeSlider(None, QtCore.Qt.Horizontal, HandleOption.DoubleHandles)
-        rsV = RangeSlider(None, QtCore.Qt.Vertical, HandleOption.DoubleHandles)
-        rsHsingleLeft = RangeSlider(None, QtCore.Qt.Horizontal, HandleOption.LeftHandle)
-        rsVsingleLeft = RangeSlider(None, QtCore.Qt.Vertical, HandleOption.LeftHandle)
-        rsHsingleRight = RangeSlider(None, QtCore.Qt.Horizontal, HandleOption.RightHandle)
-        rsVsingleRight = RangeSlider(None, QtCore.Qt.Vertical, HandleOption.RightHandle)
+        rsH = QRangeSlider(QtCore.Qt.Horizontal, HandleOption.DoubleHandles)
+        rsV = QRangeSlider(QtCore.Qt.Vertical, HandleOption.DoubleHandles)
+        rsHsingleLeft = QRangeSlider(QtCore.Qt.Horizontal, HandleOption.LeftHandle)
+        rsVsingleLeft = QRangeSlider(QtCore.Qt.Vertical, HandleOption.LeftHandle)
+        rsHsingleRight = QRangeSlider(QtCore.Qt.Horizontal, HandleOption.RightHandle)
+        rsVsingleRight = QRangeSlider(QtCore.Qt.Vertical, HandleOption.RightHandle)
+
+        palette = app.palette()
+
+        def get_color(palette, state, role):
+            state_enum = getattr(QtGui.QPalette, state)
+            role_enum = getattr(QtGui.QPalette, role)
+            return QtGui.QColor(palette.color(state_enum, role_enum))
+
+        ALL_STATES  = [ 'Disabled', 'Active', 'Inactive', 'Normal' ]
+        ALL_ROLES   = [ 'Window', 'Background', 'WindowText', 'Foreground',
+                        'Base', 'AlternateBase', 'ToolTipBase', 'ToolTipText',
+                        'Text', 'Button', 'ButtonText', 'BrightText', 'Highlight',
+                        'HighlightedText', 'Link', 'LinkVisited' ]
+
+        for state in ALL_STATES:
+            for role in ALL_ROLES:
+                color = get_color(palette, 'Active', role).name()
+                css_str = state + ':' + role + ' { color: ' + color + ' }'
+                print(css_str)
+
 
         layout = QtGui.QHBoxLayout()
         layout.addWidget(rsH)
