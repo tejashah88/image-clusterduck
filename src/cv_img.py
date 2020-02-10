@@ -1,6 +1,6 @@
 import cv2
 
-from constants import IMPLEMENTED_COLOR_SPACES
+from .constants import IMPLEMENTED_COLOR_SPACES
 
 
 class CvImg:

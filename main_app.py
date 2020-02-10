@@ -10,14 +10,14 @@ import pyqtgraph.opengl as gl
 
 import sklearn.cluster
 
-from constants import *
-from cv_img import CvImg
-from qtrangeslider import QRangeSlider
-from image_plotter import ImagePlotter
-from plot_3d import Plot3D
-from gui_busy_lock import GuiBusyLock
-from image_clusterers import *
-from multi_threading import QWorker
+from src.constants import *
+from src.cv_img import CvImg
+from src.components.qtrangeslider import QRangeSlider
+from src.components.image_plotter import ImagePlotter
+from src.components.plot_3d import Plot3D
+from src.gui_busy_lock import GuiBusyLock
+from src.image_clusterers import *
+from src.multi_threading import QWorker
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
@@ -309,7 +309,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup main plots
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True)
-        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot)
+        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot, axis_length=5)
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
         self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False)

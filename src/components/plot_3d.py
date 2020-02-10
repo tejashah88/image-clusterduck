@@ -1,5 +1,6 @@
 from pyqtgraph.Qt import QtGui
 import pyqtgraph.opengl as gl
+from .colored_gl_axis_item import ColoredGLAxisItem
 
 DEFAULT_AXIS_LENGTH = 3
 
@@ -48,7 +49,7 @@ class Plot3D(gl.GLViewWidget):
     def enable_axes(self, axis_length=3):
         if self.axes_item is None:
             # x = blue, y = yellow, z = green
-            self.axes_item = gl.GLAxisItem(size=QtGui.QVector3D(1, 1, 1) * axis_length)
+            self.axes_item = ColoredGLAxisItem(size=QtGui.QVector3D(1, 1, 1) * axis_length)
             self.addItem(self.axes_item)
 
 
