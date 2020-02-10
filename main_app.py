@@ -22,6 +22,7 @@ from src.multi_threading import QWorker
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
 DEFAULT_MAX_PIXELS = 10 ** 6
+HIST_COLORS = ('r', 'g', 'b')
 
 # NOTE: These constants will be initialized later
 SCREEN_WIDTH = -1
@@ -320,15 +321,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Setup widgets according to grid layout
         self.main_grid_layout = QtGui.QGridLayout()
 
-        # Optimal size is determined so that the app takes 75% total width and 80% total height
-        optimal_size = (SCREEN_WIDTH // 4, SCREEN_HEIGHT // 2.5)
+        # Optimal plot size is determined so that the app takes 75% total width and 80% total height
+        optimal_plot_size = (SCREEN_WIDTH // 4, SCREEN_HEIGHT // 2.5)
 
         # Setup main plots
-        self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True, size=optimal_size)
-        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot, axis_length=5, size=optimal_size)
+        self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True, size=optimal_plot_size)
+        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot, axis_length=5, size=optimal_plot_size)
 
-        self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice, size=optimal_size)
-        self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False, size=optimal_size)
+        self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice, size=optimal_plot_size)
+        self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False, size=optimal_plot_size)
 
         # Tie the axes bewteen the original image plot and the channel sliced image plot
         setup_axes_links(self.orig_img_plot, [self.channel_plot])
@@ -342,13 +343,12 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
         # TODO: HIGHLY EXPERIMENTAL
-        color = ('r','g','b')
         hist_plot = pg.PlotWidget()
         hist_plot.setTitle('Color Histogram')
-        hist_plot.setFixedSize(600, 450)
-        for i, col in enumerate(color):
-            hist = cv2.calcHist([self.cv_img.RGB], [i], None, [256], [0, 256]).squeeze()
-            hist_plot.plot(hist, stepMode=not True, fillLevel=0, pen=col)
+        hist_plot.setFixedSize(*optimal_plot_size)
+        for i, color in enumerate(HIST_COLORS):
+            hist = cv2.calcHist([self.curr_image], [i], None, [256], [0, 256]).squeeze()
+            hist_plot.plot(hist, stepMode=not True, fillLevel=0, pen=color)
             hist_plot.autoRange()
 
         self.main_grid_layout.addWidget(hist_plot, 0, 2)
