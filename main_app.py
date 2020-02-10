@@ -23,6 +23,10 @@ DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
 DEFAULT_MAX_PIXELS = 10 ** 6
 
+# NOTE: These constants will be initialized later
+SCREEN_WIDTH = -1
+SCREEN_HEIGHT = -1
+
 
 CLUSTER_ALGORITHMS = {
     'K-Means'                       : KMeansImageClusterer(),
@@ -307,12 +311,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Setup widgets according to grid layout
         self.main_grid_layout = QtGui.QGridLayout()
 
-        # Setup main plots
-        self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True)
-        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot, axis_length=5)
+        # Optimal size is determined so that the app takes 75% total width and 80% total height
+        optimal_size = (SCREEN_WIDTH // 4, SCREEN_HEIGHT // 2.5)
 
-        self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
-        self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False)
+        # Setup main plots
+        self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True, size=optimal_size)
+        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot, axis_length=5, size=optimal_size)
+
+        self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice, size=optimal_size)
+        self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False, size=optimal_size)
 
         # Tie the axes bewteen the original image plot and the channel sliced image plot
         setup_axes_links(self.orig_img_plot, [self.channel_plot])
@@ -660,6 +667,10 @@ if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         app = pg.mkQApp()
+
+        screen_resolution = app.desktop().screenGeometry()
+        SCREEN_WIDTH, SCREEN_HEIGHT = screen_resolution.width(), screen_resolution.height()
+
         with open('src/app.css') as fp:
             app.setStyleSheet('\n'.join(fp.readlines()).strip())
 
