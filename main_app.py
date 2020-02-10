@@ -348,7 +348,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup the color histogram plot
         self.color_hist_plot = ImageHistPlotter(size=optimal_plot_size)
-        self.color_hist_plot.plot_hist(self.curr_image)
+        self.color_hist_plot.plot_hist(self.curr_image_cropped)
         self.main_grid_layout.addWidget(self.color_hist_plot, 0, 2)
 
         # Setup settings/data tabs
@@ -529,7 +529,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
             self.glvw_color_vis.remove_cluster_plot()
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
-            self.color_hist_plot.plot_hist(self.curr_image)
+            self.color_hist_plot.plot_hist(self.curr_image_cropped)
 
             self.channel_cbox.clear()
             self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
@@ -575,8 +575,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_crop_modify(self):
         if self.apply_crop:
-            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
-            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
+            self.on_img_modify()
 
 
     def on_thresh_change(self, thresh_ch_index, lower_val, upper_val):
@@ -584,9 +583,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.channel_thresholds[thresh_ch_index] = (lower_val, upper_val)
             self.data_tree[f'Threshold Ch {thresh_ch_index + 1}'] = np.array(self.channel_thresholds[thresh_ch_index])
 
-            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
-            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
-            self.channel_plot.set_image(self.curr_image_slice, auto_range=False)
+            self.on_img_modify()
 
 
     def on_apply_crop_toggle(self, should_apply_crop):
@@ -646,6 +643,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
         self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
         self.channel_plot.set_image(self.curr_image_slice, auto_range=False)
+        self.color_hist_plot.plot_hist(self.curr_image_cropped)
 
 
     def setup_menubar(self, main_window):
