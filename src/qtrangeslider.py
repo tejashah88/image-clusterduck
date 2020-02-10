@@ -1,3 +1,5 @@
+# Source: https://github.com/ThisIsClark/Qt-RangeSlider
+
 from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph as pg
 

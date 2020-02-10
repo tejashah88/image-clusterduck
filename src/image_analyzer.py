@@ -179,6 +179,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_thresh = False
 
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
+        self.cluster_worker = None
 
         self.threadpool = QtCore.QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
@@ -482,27 +483,35 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.on_img_modify()
 
 
+    @property
+    def is_clustering(self):
+        return self.cluster_worker is not None
+
+
     def on_run_clustering(self):
-        self.run_clustering_button.setEnabled(False)
+        if not self.is_clustering:
+            self.run_clustering_button.setEnabled(False)
 
-        worker = QWorker(self.clusterer_controller.run_clustering, self.cv_img, self.color_mode)
-        def process_results(results):
-            color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations = results
-            self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
+            self.cluster_worker = QWorker(self.clusterer_controller.run_clustering, self.cv_img, self.color_mode)
 
-        def handle_error(err):
-            ex = err[1]
-            stacktrace = ''.join(traceback.format_tb(ex.__traceback__))
-            print(f'{ex}\n{stacktrace}')
-            QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
+            def process_cluster_results(results):
+                color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations = results
+                self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
 
-        def handle_finish():
-            self.run_clustering_button.setEnabled(True)
+            def handle_cluster_error(err):
+                ex = err[1]
+                stacktrace = ''.join(traceback.format_tb(ex.__traceback__))
+                print(f'{ex}\n{stacktrace}')
+                QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
 
-        worker.signals.result.connect(process_results)
-        worker.signals.error.connect(handle_error)
-        worker.signals.finished.connect(handle_finish)
-        self.threadpool.start(worker)
+            def handle_cluster_finish():
+                self.run_clustering_button.setEnabled(True)
+                self.cluster_worker = None
+
+            self.cluster_worker.signals.result.connect(process_cluster_results)
+            self.cluster_worker.signals.error.connect(handle_cluster_error)
+            self.cluster_worker.signals.finished.connect(handle_cluster_finish)
+            self.threadpool.start(self.cluster_worker)
 
 
     def on_img_modify(self):
