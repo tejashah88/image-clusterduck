@@ -6,17 +6,21 @@ import pandas as pd
 import sklearn.cluster
 import cv2
 
+# import h5py
+
 from pyqtgraph.Qt import QtCore, QtGui
 
-from constants import *
+from .constants import *
 
 
 ALLOWED_GUI_COMPONENTS = ['spinbox', 'dropdown', 'slider', 'checkbox']
-PARAM_CONFIG_COLUMNS = ['name', 'internal_name', 'title', 'gui_component', 'default_val', 'metadata']
+PARAM_CONFIG_COLUMNS = ['name', 'internal_name', 'title', 'gui_component', 'default_val', 'metadata', 'transform_fn']
 NUM_CPUS = multiprocessing.cpu_count()
 
 INT_MAX = 2**31 - 1
 INT_MIN = -2**31
+
+# hdf5_store = h5py.File('./cache.hdf5', 'a')
 
 def get_rgb_from(pixels, color_mode):
     if color_mode == 'RGB':
