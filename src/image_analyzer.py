@@ -548,9 +548,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.cluster_settings_widget = QtGui.QWidget()
         self.cluster_settings_widget.setLayout(cluster_settings_layout)
 
-        self.settings_grid_layout.replaceWidget(old_widget, self.cluster_settings_widget)
+        self.clustering_settings_layout.replaceWidget(old_widget, self.cluster_settings_widget)
         QtCore.QObjectCleanupHandler().add(old_widget)
-        self.settings_grid_layout.update()
+        self.clustering_settings_layout.update()
 
 
     def on_crop_modify(self):
