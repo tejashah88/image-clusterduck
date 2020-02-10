@@ -16,6 +16,10 @@ class GlobalDataTreeWidget(pg.DataTreeWidget):
         self.update_data()
 
 
+    def __delitem__(self, key):
+        del self.global_data[key]
+
+
     def set_data(self, data={}):
         self.global_data = {**self.global_data, **data}
         self.update_data()

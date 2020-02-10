@@ -426,13 +426,16 @@ class MyWindow(pg.GraphicsLayoutWidget):
         initial_data = {
             'Mouse Location': np.array([-1, -1]),
             'Color at Mouse': np.array([-1, -1, -1]),
-            'Thresh Ch 1': np.array(self.channel_thresholds[0]),
-            'Thresh Ch 2': np.array(self.channel_thresholds[1]),
-            'Thresh Ch 3': np.array(self.channel_thresholds[2]),
         }
 
         self.data_tree = GlobalDataTreeWidget()
         self.data_tree.set_data(initial_data)
+
+        # Add the threshold values
+        cs_labels = COLOR_SPACE_LABELS[self.color_mode]
+        for i, label in enumerate(cs_labels):
+            self.data_tree[f'Threshold Ch {i + 1}'] = np.array(self.channel_thresholds[i])
+
         self.general_settings_layout.addWidget(self.data_tree, 8, 0, 1, 2)
 
         def handle_on_mouse_hover(x, y, color):
@@ -520,8 +523,12 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.channel_cbox.clear()
             self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
 
-            for (i, channel_label) in enumerate(self.all_channel_labels):
+            for i in range(3):
+                channel_label = self.all_channel_labels[i]
                 channel_label.setText(f'Threshold ({COLOR_SPACE_LABELS[self.color_mode][i]}):')
+
+                channel_thresh_slider = self.all_channel_thresh_sliders[i]
+                channel_thresh_slider.values = (0, 255)
 
             self.on_channel_view_change(self.ch_index)
 
