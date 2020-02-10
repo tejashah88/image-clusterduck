@@ -17,6 +17,7 @@ from image_plotter import ImagePlotter
 from plot_3d import Plot3D
 from gui_busy_lock import GuiBusyLock
 from image_clusterers import *
+from multi_threading import QWorker
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
@@ -178,6 +179,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_thresh = False
 
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
+
+        self.threadpool = QtCore.QThreadPool()
+        print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
 
     @property
@@ -479,14 +483,26 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     def on_run_clustering(self):
-        with GuiBusyLock(self):
-            try:
-                (color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations) = self.clusterer_controller.run_clustering(self.cv_img, self.color_mode)
-                self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
-            except Exception as ex:
-                stacktrace = ''.join(traceback.format_tb(ex.__traceback__))
-                print(f'{ex}\n{stacktrace}')
-                QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
+        self.run_clustering_button.setEnabled(False)
+
+        worker = QWorker(self.clusterer_controller.run_clustering, self.cv_img, self.color_mode)
+        def process_results(results):
+            color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations = results
+            self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
+
+        def handle_error(err):
+            ex = err[1]
+            stacktrace = ''.join(traceback.format_tb(ex.__traceback__))
+            print(f'{ex}\n{stacktrace}')
+            QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
+
+        def handle_finish():
+            self.run_clustering_button.setEnabled(True)
+
+        worker.signals.result.connect(process_results)
+        worker.signals.error.connect(handle_error)
+        worker.signals.finished.connect(handle_finish)
+        self.threadpool.start(worker)
 
 
     def on_img_modify(self):
