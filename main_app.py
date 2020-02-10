@@ -204,6 +204,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_crop = False
         self.apply_thresh = False
 
+        self.num_pixels_loaded = DEFAULT_MAX_PIXELS
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
         self.cluster_worker = None
 
@@ -290,11 +291,14 @@ class MyWindow(pg.GraphicsLayoutWidget):
         )
 
 
-    def load_image_file(self, img_path, max_pixels=DEFAULT_MAX_PIXELS):
+    def load_image_file(self, img_path, max_pixels):
         self.load_image(cv2.imread(img_path), max_pixels)
 
 
-    def load_image(self, input_img, max_pixels=DEFAULT_MAX_PIXELS):
+    def load_image(self, input_img, max_pixels):
+        if max_pixels is None:
+            max_pixels = self.num_pixels_loaded
+
         with GuiBusyLock(self):
             if input_img is None:
                 print(f'Error: Unable to load image from {img_path}')
@@ -364,9 +368,14 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.max_pixels_slider.setMinimum(0)
         self.max_pixels_slider.setMaximum(10)
         self.max_pixels_slider.setValue(6)
-        self.max_pixels_slider.valueChanged.connect(lambda val: self.load_image(self.input_img, 10**val))
 
-        self.general_settings_layout.addWidget(QtGui.QLabel('Max Pixels (10^X):'), 0, 0)
+        def on_max_pixels_slider_change(val):
+            self.num_pixels_loaded = 10 ** val
+            self.load_image(self.input_img, self.num_pixels_loaded)
+            self.data_tree['Pixels Loaded'] = self.num_pixels_loaded
+        self.max_pixels_slider.valueChanged.connect(on_max_pixels_slider_change)
+
+        self.general_settings_layout.addWidget(QtGui.QLabel('Max Pixels (10^x):'), 0, 0)
         self.general_settings_layout.addWidget(self.max_pixels_slider, 0, 1)
 
         # Setup color space combo box
@@ -424,6 +433,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup the data tree widget
         initial_data = {
+            'Total Pixels': image_num_pixels(self.input_img),
+            'Pixels Loaded': self.num_pixels_loaded,
             'Mouse Location': np.array([-1, -1]),
             'Color at Mouse': np.array([-1, -1, -1]),
         }
@@ -648,7 +659,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         open_image_action = QtGui.QAction('Open Image', self)
         open_image_action.setShortcut('Ctrl+O')
         open_image_action.setStatusTip('Open Image')
-        open_image_action.triggered.connect(lambda: self.load_image_file(self.open_image_file_dialog()))
+        open_image_action.triggered.connect(lambda: self.load_image_file(self.open_image_file_dialog(), self.num_pixels_loaded))
         file_menu.addAction(open_image_action)
 
         exit_action = QtGui.QAction('Exit', self)
@@ -680,7 +691,7 @@ if __name__ == '__main__':
 
         MainWindow = QtGui.QMainWindow()
         gui = MyWindow()
-        gui.load_image_file(DEFAULT_IMG_FILENAME)
+        gui.load_image_file(DEFAULT_IMG_FILENAME, DEFAULT_MAX_PIXELS)
         gui.setup_gui()
         gui.bind_to_main_window(MainWindow)
         MainWindow.show()

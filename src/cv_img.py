@@ -7,7 +7,7 @@ class CvImg:
     ''' A class for allowing easy access to image color conversion methods. '''
 
     def __init__(self):
-        self.image = {}
+        self.image = None
 
 
     def __getitem__(self, sname):
