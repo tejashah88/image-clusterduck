@@ -6,16 +6,15 @@ ROI_PEN_WIDTH = 2
 
 class ImagePlotter(pg.PlotWidget):
     """ A wrapper for pg.PlotWidget that allows easy ROI integration, image switching and pixel-click events. """
-    def __init__(self, title='', size=(600, 450), img=None, enable_roi=False):
+    def __init__(self, title='', size=(600, 450), img=None, enable_roi=False, enable_crosshair=False):
         # Create and initialize plotting widget
         super().__init__()
 
-        # Create vars for the image and ROI items
+        # Create vars for the image, ROI, and crosshair items
         self.img_item = None
         self.roi_item = None
-
-        # Create listener variable for containing the listeners for the image item
-        self.click_listeners = []
+        self.vLine = None
+        self.hLine = None
 
         # Do not automatically set the range of the image to prevent ROI from messing with it
         self.disableAutoRange()
@@ -33,6 +32,9 @@ class ImagePlotter(pg.PlotWidget):
         if enable_roi:
             self.enable_roi_rect()
 
+        if enable_crosshair:
+            self.enable_crosshairs()
+
 
     def set_image(self, img, auto_range=True):
         self.img = img
@@ -44,10 +46,6 @@ class ImagePlotter(pg.PlotWidget):
             # Create image item and add to plot
             self.img_item = pg.ImageItem(image=self.img)
             self.addItem(self.img_item)
-
-            # On click on the image, emit the pixel location and value as an event
-            self.orig_on_pixel_select = self.img_item.mousePressEvent
-            self.img_item.mousePressEvent = self.on_pixel_select
 
         # Resize the plot so that it fits the whole image
         if auto_range:
@@ -61,19 +59,6 @@ class ImagePlotter(pg.PlotWidget):
             self.roi_item.setPos([0, 0])
             height, width = self.img.shape[:2]
             self.roi_item.setSize([width, height])
-
-
-    def on_pixel_select(self, event):
-        """ This is triggered whenever the suer clicks on a pixel. """
-        self.orig_on_pixel_select(event)
-
-        pixel_loc = event.pos().toPoint()
-        x, y = pixel_loc.x(), pixel_loc.y()
-        height, width = self.img.shape[:2]
-
-        if ((x >= 0 and x < width) and (y >= 0 and y < height)):
-            for listener in self.click_listeners:
-                listener(x, y, self.img[y, x])
 
 
     @property
@@ -105,13 +90,28 @@ class ImagePlotter(pg.PlotWidget):
             self.roi_item = None
 
 
-    def add_click_listener(self, click_fn):
-        self.click_listeners.append(click_fn)
+    def enable_crosshairs(self):
+        if self.vLine is None and self.hLine is None:
+            self.vLine = pg.InfiniteLine(angle=90, movable=False)
+            self.hLine = pg.InfiniteLine(angle=0, movable=False)
 
+            self.addItem(self.vLine, ignoreBounds=True)
+            self.addItem(self.hLine, ignoreBounds=True)
 
-    def remove_click_listener(self, click_fn):
-        self.click_listeners.remove(click_fn)
+            def mouse_moved(mouse_pos):
+                if self.sceneBoundingRect().contains(mouse_pos):
+                    mouse_point = self.getViewBox().mapSceneToView(mouse_pos)
+                    self.vLine.setPos(mouse_point.x())
+                    self.hLine.setPos(mouse_point.y())
 
+            self.scene().sigMouseMoved.connect(mouse_moved)
 
-    def remove_all_click_listeners(self, click_fn):
-        self.click_listeners = []
+    def disable_crosshairs(self):
+        if None not in [self.vLine, self.hLine]:
+            self.scene().sigMouseMoved.disconnect()
+
+            self.removeItem(self.vLine, ignoreBounds=True)
+            self.removeItem(self.hLine, ignoreBounds=True)
+
+            self.vLine = None
+            self.hLine = None

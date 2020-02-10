@@ -12,10 +12,3 @@ COLOR_SPACE_LABELS = {
     'HSV': ('Hue', 'Saturation', 'Value'),
     'XYZ': ('X', 'Y', 'Z'),
 }
-
-ALL_CLUSTER_ALGORITHMS = [
-    'K-Means', 'Mini Batch K-Means', 'Affinity Propagation', 'Mean Shift',
-    'Spectral Clustering', 'Ward Hierarchical Clustering',
-    'Agglomerative Clustering', 'DBSCAN', 'OPTICS',
-    'Gaussian Mixtures', 'Birch'
-]
