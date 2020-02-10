@@ -571,6 +571,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def on_thresh_change(self, thresh_ch_index, lower_val, upper_val):
         if self.apply_thresh:
             self.channel_thresholds[thresh_ch_index] = (lower_val, upper_val)
+            self.data_tree[f'Threshold Ch {thresh_ch_index + 1}'] = np.array(self.channel_thresholds[thresh_ch_index])
 
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
