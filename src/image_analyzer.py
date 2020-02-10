@@ -304,6 +304,18 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.main_grid_layout.addWidget(self.channel_plot, 0, 1)
         self.main_grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
 
+        # TODO: HIGHLY EXPERIMENTAL
+        color = ('r','g','b')
+        hist_plot = pg.PlotWidget()
+        hist_plot.setTitle('Color Histogram')
+        hist_plot.setFixedSize(600, 450)
+        for i, col in enumerate(color):
+            hist = cv2.calcHist([self.cv_img.RGB], [i], None, [256], [0, 256]).squeeze()
+            hist_plot.plot(hist, stepMode=not True, fillLevel=0, pen=col)
+            hist_plot.autoRange()
+
+        self.main_grid_layout.addWidget(hist_plot, 0, 2)
+
         # Setup data/settings tabs
         self.info_tabs = QtGui.QTabWidget()
         self.general_data_tab = QtGui.QWidget()
