@@ -272,14 +272,12 @@ class MyWindow(pg.GraphicsLayoutWidget):
             raise Exception('Error: Image has not been loaded yet! Please call load_image() before calling setup_gui()')
 
         # Setup main plots
-        self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_roi=True)
-        self.roi = self.orig_img_plot.roi_item
+        self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True)
         self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot)
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice)
         self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False)
 
-        self.roi.sigRegionChanged.connect(self.on_crop_modify)
         setup_axes_links(self.orig_img_plot, [self.channel_plot])
 
         # Setup color space combo box
@@ -461,6 +459,14 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_apply_crop_toggle(self, should_apply_crop):
         self.apply_crop = should_apply_crop
+
+        if self.apply_crop:
+            self.orig_img_plot.enable_roi_rect()
+            self.roi = self.orig_img_plot.roi_item
+            self.roi.sigRegionChanged.connect(self.on_crop_modify)
+        else:
+            self.orig_img_plot.disable_roi_rect()
+
         self.on_img_modify()
 
 
