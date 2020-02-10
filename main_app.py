@@ -207,7 +207,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.cluster_worker = None
 
         self.threadpool = QtCore.QThreadPool()
-        print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+        print('Multithreading with maximum %d threads' % self.threadpool.maxThreadCount())
 
 
     @property
@@ -351,8 +351,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
         general_data_settings_tab = QtGui.QWidget()
         cluster_settings_tab = QtGui.QWidget()
 
-        info_tabs.addTab(general_data_settings_tab, "Settings/Data")
-        info_tabs.addTab(cluster_settings_tab, "Clustering")
+        info_tabs.addTab(general_data_settings_tab, 'Settings/Data')
+        info_tabs.addTab(cluster_settings_tab, 'Clustering')
 
 
         # Lay everything out for general settings/data tab
@@ -485,7 +485,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # HACK: Add dummy label widget to squish all widgets to the top
         self.clustering_settings_layout.addWidget(QtGui.QLabel(''), 3, 0, 999, 2)
 
-        # Place all cluster settings widgets in "Clustering" tab
+        # Place all cluster settings widgets in 'Clustering' tab
         cluster_settings_tab.setLayout(self.clustering_settings_layout)
 
         # Add the tabs into the main layout

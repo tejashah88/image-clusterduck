@@ -5,7 +5,7 @@ HIST_COLORS = ('r', 'g', 'b')
 
 
 class ImageHistPlotter(pg.PlotWidget):
-    """ A wrapper for pg.PlotWidget that allows easy image histogram plotting. """
+    ''' A wrapper for pg.PlotWidget that allows easy image histogram plotting. '''
     def __init__(self, title='', size=(600, 450), img=None):
         # Create and initialize plotting widget
         super().__init__()

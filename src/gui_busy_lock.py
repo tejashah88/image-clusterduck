@@ -3,7 +3,7 @@ import pyqtgraph as pg
 
 
 class GuiBusyLock(object):
-    """ A object class to control GUI app interactions during long-term operations. """
+    ''' A object class to control GUI app interactions during long-term operations. '''
 
     def __init__(self, parent):
         self.parent = parent

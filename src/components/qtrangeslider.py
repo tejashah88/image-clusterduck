@@ -292,7 +292,7 @@ class QRangeSlider(QtGui.QWidget):
         length = self.width() if self.orientation == QtCore.Qt.Horizontal else self.height()
         return length - SC_LEFT_RIGHT_MARGIN * 2 - SC_HANDLE_SIDE_LENGTH * (2 if self.range_type & HandleOption.DoubleHandles else 1)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         app = pg.mkQApp()
@@ -336,7 +336,7 @@ if __name__ == "__main__":
         layout.addWidget(rsVsingleRight)
 
         widget.setLayout(layout)
-        widget.setStyleSheet("background-color:black")
+        widget.setStyleSheet('background-color:black')
         MainWindow.resize(QtGui.QDesktopWidget().availableGeometry(MainWindow).size() * 0.7)
 
         MainWindow.setCentralWidget(widget)
