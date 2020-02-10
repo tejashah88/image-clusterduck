@@ -21,7 +21,7 @@ from multi_threading import QWorker
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
-MAX_PIXELS = 10 ** 6
+DEFAULT_MAX_PIXELS = 10 ** 6
 
 
 CLUSTER_ALGORITHMS = {
@@ -159,6 +159,7 @@ def load_image_max_pixels(input_img, max_pixels):
         resize_factor = 1 / ( (num_pixels / max_pixels) ** 0.5 )
         resized_img = cv2.resize(input_img, None, fx=resize_factor, fy=resize_factor)
     else:
+        resize_factor = 1
         resized_img = input_img[:, :, :]
 
     return (resized_img, resize_factor)
@@ -178,6 +179,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         super().__init__()
         self.setWindowTitle('Image Cluster Analysis')
 
+        self.input_img = None
         self.cv_img = None
 
         self.ch_index = 0
@@ -273,18 +275,21 @@ class MyWindow(pg.GraphicsLayoutWidget):
         )
 
 
-    def load_image(self, img_path, max_pixels=MAX_PIXELS):
-        with GuiBusyLock(self):
-            input_img = cv2.imread(img_path)
+    def load_image_file(self, img_path, max_pixels=DEFAULT_MAX_PIXELS):
+        self.load_image(cv2.imread(img_path), max_pixels)
 
+
+    def load_image(self, input_img, max_pixels=DEFAULT_MAX_PIXELS):
+        with GuiBusyLock(self):
             if input_img is None:
                 print(f'Error: Unable to load image from {img_path}')
                 return
 
-            num_pixels = image_num_pixels(input_img)
+            self.input_img = input_img
+            num_pixels = image_num_pixels(self.input_img)
             print('Original number of pixels:', num_pixels)
 
-            resized_img, resize_factor = load_image_max_pixels(input_img, max_pixels)
+            resized_img, resize_factor = load_image_max_pixels(self.input_img, max_pixels)
             print('Resize factor:', resize_factor)
 
             self.cv_img = CvImg.from_ndarray(resized_img)
@@ -297,7 +302,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def setup_gui(self):
         if self.cv_img is None:
-            raise Exception('Error: Image has not been loaded yet! Please call load_image() before calling setup_gui()')
+            raise Exception('Error: Image has not been loaded yet! Please call load_image() or load_image_file() before calling setup_gui()')
 
         # Setup widgets according to grid layout
         self.main_grid_layout = QtGui.QGridLayout()
@@ -318,6 +323,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.main_grid_layout.addWidget(self.channel_plot, 0, 1)
         self.main_grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
+
 
         # TODO: HIGHLY EXPERIMENTAL
         color = ('r','g','b')
@@ -344,14 +350,24 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Lay everything out for general settings/data tab
         self.general_settings_layout = QtGui.QGridLayout()
 
+        # Setup max pixels loading slider
+        self.max_pixels_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.max_pixels_slider.setMinimum(0)
+        self.max_pixels_slider.setMaximum(10)
+        self.max_pixels_slider.setValue(6)
+        self.max_pixels_slider.valueChanged.connect(lambda val: self.load_image(self.input_img, 10**val))
+
+        self.general_settings_layout.addWidget(QtGui.QLabel('Max Pixels (10^X):'), 0, 0)
+        self.general_settings_layout.addWidget(self.max_pixels_slider, 0, 1)
+
         # Setup color space combo box
         self.color_space_cbox = QtGui.QComboBox()
         self.color_space_cbox.addItems(ALL_COLOR_SPACES)
         self.color_space_cbox.setCurrentIndex(self.cs_index)
         self.color_space_cbox.currentIndexChanged.connect(self.on_color_space_change)
 
-        self.general_settings_layout.addWidget(QtGui.QLabel('Color Space:'), 0, 0)
-        self.general_settings_layout.addWidget(self.color_space_cbox, 0, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Color Space:'), 1, 0)
+        self.general_settings_layout.addWidget(self.color_space_cbox, 1, 1)
 
         # Setup channel combo box
         self.channel_cbox = QtGui.QComboBox()
@@ -359,25 +375,25 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_cbox.setCurrentIndex(self.ch_index)
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
-        self.general_settings_layout.addWidget(QtGui.QLabel('Channel:'), 1, 0)
-        self.general_settings_layout.addWidget(self.channel_cbox, 1, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Channel:'), 2, 0)
+        self.general_settings_layout.addWidget(self.channel_cbox, 2, 1)
 
         # Setup cropping checkbox
         self.apply_crop_box = QtGui.QCheckBox()
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
-        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Cropping:'), 2, 0)
-        self.general_settings_layout.addWidget(self.apply_crop_box, 2, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Cropping:'), 3, 0)
+        self.general_settings_layout.addWidget(self.apply_crop_box, 3, 1)
 
         # Setup thresholding checkbox
         self.apply_thresh_box = QtGui.QCheckBox()
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
-        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Thresholding:'), 3, 0)
-        self.general_settings_layout.addWidget(self.apply_thresh_box, 3, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Thresholding:'), 4, 0)
+        self.general_settings_layout.addWidget(self.apply_thresh_box, 4, 1)
 
         # Setup thresholding sliders for all channels
-        thresh_row_offset = 4
+        thresh_row_offset = 5
         self.all_channel_thresh_sliders = []
         self.all_channel_labels = []
         channel_thresh_value_changed = lambda i: (lambda lower, upper: self.on_thresh_change(i, lower, upper))
@@ -424,10 +440,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
         show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, handle_on_mouse_hover)
         self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
 
-        self.general_settings_layout.addWidget(self.data_tree, 7, 0, 1, 2)
+        self.general_settings_layout.addWidget(self.data_tree, 8, 0, 1, 2)
 
         # HACK: Add dummy label widget to squish all widgets to the top
-        self.general_settings_layout.addWidget(QtGui.QLabel(''), 8, 0, 999, 2)
+        self.general_settings_layout.addWidget(QtGui.QLabel(''), 9, 0, 999, 2)
 
         # Place all general settings widgets in "Settings" tab
         general_data_settings_tab.setLayout(self.general_settings_layout)
@@ -621,7 +637,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         open_image_action = QtGui.QAction('Open Image', self)
         open_image_action.setShortcut('Ctrl+O')
         open_image_action.setStatusTip('Open Image')
-        open_image_action.triggered.connect(lambda: self.load_image(self.open_image_file_dialog()))
+        open_image_action.triggered.connect(lambda: self.load_image_file(self.open_image_file_dialog()))
         file_menu.addAction(open_image_action)
 
         exit_action = QtGui.QAction('Exit', self)
@@ -649,7 +665,7 @@ if __name__ == '__main__':
 
         MainWindow = QtGui.QMainWindow()
         gui = MyWindow()
-        gui.load_image(DEFAULT_IMG_FILENAME)
+        gui.load_image_file(DEFAULT_IMG_FILENAME)
         gui.setup_gui()
         gui.bind_to_main_window(MainWindow)
         MainWindow.show()
