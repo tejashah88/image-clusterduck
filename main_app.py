@@ -15,6 +15,7 @@ from src.cv_img import CvImg
 from src.components.qtrangeslider import QRangeSlider
 from src.components.image_plotter import ImagePlotter
 from src.components.image_hist_plotter import ImageHistPlotter
+from src.components.global_data_tree import GlobalDataTreeWidget
 from src.components.plot_3d import Plot3D
 from src.gui_busy_lock import GuiBusyLock
 from src.image_clusterers import *
@@ -422,38 +423,30 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.all_channel_thresh_sliders += [channel_thresh_slider]
 
         # Setup the data tree widget
-        self.general_data = {
+        initial_data = {
             'Mouse Location': np.array([-1, -1]),
-            'Color at Mouse (RGB)': np.array([-1, -1, -1]),
+            'Color at Mouse': np.array([-1, -1, -1]),
             'Thresh Ch 1': np.array(self.channel_thresholds[0]),
             'Thresh Ch 2': np.array(self.channel_thresholds[1]),
             'Thresh Ch 3': np.array(self.channel_thresholds[2]),
         }
 
-        self.data_tree = pg.DataTreeWidget()
-        self.data_tree.setData(self.general_data, hideRoot=True)
-
-        # Resize first two columns since they won't change
-        self.data_tree.resizeColumnToContents(0)
-        self.data_tree.resizeColumnToContents(1)
+        self.data_tree = GlobalDataTreeWidget()
+        self.data_tree.set_data(initial_data)
+        self.general_settings_layout.addWidget(self.data_tree, 8, 0, 1, 2)
 
         def handle_on_mouse_hover(x, y, color):
-            self.general_data['Mouse Location'] = np.array([x, y])
-            self.general_data['Color at Mouse (RGB)'] = color
-            self.data_tree.setData(self.general_data, hideRoot=True)
-
-            # Resize the data column after update the data tree
-            self.data_tree.resizeColumnToContents(2)
+            self.data_tree['Mouse Location'] = np.array([x, y])
+            self.data_tree['Color at Mouse'] = color
 
         show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, handle_on_mouse_hover)
         self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
 
-        self.general_settings_layout.addWidget(self.data_tree, 8, 0, 1, 2)
 
         # HACK: Add dummy label widget to squish all widgets to the top
         self.general_settings_layout.addWidget(QtGui.QLabel(''), 9, 0, 999, 2)
 
-        # Place all general settings widgets in "Settings" tab
+        # Place all general settings widgets in 'Settings' tab
         general_data_settings_tab.setLayout(self.general_settings_layout)
 
 
