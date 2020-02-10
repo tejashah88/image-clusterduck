@@ -231,6 +231,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     @property
+    def curr_image_cropped(self):
+        if self.apply_crop:
+            x_min, y_min, x_max, y_max = self.roi_bounds
+            return self.curr_image[y_min:y_max, x_min:x_max]
+        else:
+            return self.curr_image
+
+
+    @property
     def curr_image_slice(self):
         img_slice = self.cv_img[self.color_mode][:, :, self.ch_index]
         if self.apply_thresh:

@@ -130,7 +130,7 @@ class BaseImageClusterer:
             self.params[param_name] = param_transform_fn(param_curr_val if param_curr_val is not None else param_default_val)
 
 
-    def run_clustering(self, cv_img, color_mode):
+    def run_clustering(self, cv_img, color_mode, crop_bounds=None):
         cluster_params = {}
 
         for index, param_row in self.param_config.iterrows():
@@ -140,7 +140,12 @@ class BaseImageClusterer:
 
         self.clusterer.set_params(**cluster_params)
 
-        color_coords = cv_img[color_mode].reshape(-1, 3)
+        initial_img = cv_img[color_mode]
+        if crop_bounds is not None:
+            x_min, y_min, x_max, y_max = crop_bounds
+            initial_img = initial_img[y_min:y_max, x_min:x_max]
+
+        color_coords = initial_img.reshape(-1, 3)
         rgb_image = cv_img.RGB.reshape(-1, 3)
         cluster_results = self.clusterer.fit(color_coords)
         return cluster_results
@@ -150,7 +155,7 @@ class KMeansImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
     _param_config = [
         ('num_clusters', 'n_clusters', 'Number of clusters', 'spinbox' , 8       , (1, INT_MAX, 1)          , None),
-        ('init_centers', 'init'      , 'Initial centers'   , 'dropdown', 'random', ('random', 'kmeans++')   , None),
+        ('init_centers', 'init'      , 'Initial centers'   , 'dropdown', 'random', ('random', 'k-means++')  , None),
         ('repeat_count', 'n_init'    , 'Number of runs'    , 'spinbox' , 10      , (1, INT_MAX, 1)          , None),
         ('max_iter'    , 'max_iter'  , 'Max interations'   , 'spinbox' , 300     , (1, INT_MAX, 1)          , None),
         ('tolerance'   , 'tol'       , 'Tolerance'         , 'slider'  , -4      , (-10, 10, 1)             , lambda val: 10**val),
@@ -163,8 +168,8 @@ class KMeansImageClusterer(BaseImageClusterer):
         super().__init__(sklearn.cluster.KMeans, self._param_config)
 
 
-    def run_clustering(self, cv_img, color_mode):
-        cluster_results = super().run_clustering(cv_img, color_mode)
+    def run_clustering(self, cv_img, color_mode, crop_bounds):
+        cluster_results = super().run_clustering(cv_img, color_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_
         color_labels = cluster_results.labels_
@@ -178,23 +183,23 @@ class KMeansImageClusterer(BaseImageClusterer):
 class MiniBatchKMeansImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html
     _param_config = [
-        ('num_clusters'  , 'n_clusters'        , 'Number of clusters'   , 'spinbox' , 8       , (1, INT_MAX, 1)       , None),
-        ('init_centers'  , 'init'              , 'Initial centers'      , 'dropdown', 'random', ('random', 'kmeans++'), None),
-        ('repeat_count'  , 'n_init'            , 'Number of runs'       , 'spinbox' , 10      , (1, INT_MAX, 1)       , None),
-        ('max_iter'      , 'max_iter'          , 'Max interations'      , 'spinbox' , 300     , (1, INT_MAX, 1)       , None),
-        ('tolerance'     , 'tol'               , 'Tolerance'            , 'slider'  , -4      , (-10, 10, 1)          , lambda val: 10**val),
-        ('batch_size'    , 'batch_size'        , 'Batch Size'           , 'spinbox' , 100     , (1, INT_MAX, 1)       , None),
-        ('iter_plateau'  , 'max_no_improvement', 'Max iteration plateau', 'spinbox' , 10      , (0, INT_MAX, 1)       , None),
-        ('reassign_ratio', 'reassignment_ratio', 'Reassignment Ratio'   , 'spinbox' , 10      , (0, 1000, 1)          , None),
-        ('verbose'       , 'verbose'           , 'Verbose Logging'      , 'checkbox', False   , None                  , None),
+        ('num_clusters'  , 'n_clusters'        , 'Number of clusters'   , 'spinbox' , 8       , (1, INT_MAX, 1)        , None),
+        ('init_centers'  , 'init'              , 'Initial centers'      , 'dropdown', 'random', ('random', 'k-means++'), None),
+        ('repeat_count'  , 'n_init'            , 'Number of runs'       , 'spinbox' , 10      , (1, INT_MAX, 1)        , None),
+        ('max_iter'      , 'max_iter'          , 'Max interations'      , 'spinbox' , 300     , (1, INT_MAX, 1)        , None),
+        ('tolerance'     , 'tol'               , 'Tolerance'            , 'slider'  , -4      , (-10, 10, 1)           , lambda val: 10**val),
+        ('batch_size'    , 'batch_size'        , 'Batch Size'           , 'spinbox' , 100     , (1, INT_MAX, 1)        , None),
+        ('iter_plateau'  , 'max_no_improvement', 'Max iteration plateau', 'spinbox' , 10      , (0, INT_MAX, 1)        , None),
+        ('reassign_ratio', 'reassignment_ratio', 'Reassignment Ratio'   , 'spinbox' , 10      , (0, 1000, 1)           , None),
+        ('verbose'       , 'verbose'           , 'Verbose Logging'      , 'checkbox', False   , None                   , None),
     ]
 
     def __init__(self):
         super().__init__(sklearn.cluster.MiniBatchKMeans, self._param_config)
 
 
-    def run_clustering(self, cv_img, color_mode):
-        cluster_results = super().run_clustering(cv_img, color_mode)
+    def run_clustering(self, cv_img, color_mode, crop_bounds):
+        cluster_results = super().run_clustering(cv_img, color_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_
         color_labels = cluster_results.labels_
@@ -218,8 +223,8 @@ class AffinityPropagationImageClusterer(BaseImageClusterer):
         super().__init__(sklearn.cluster.AffinityPropagation, self._param_config)
 
 
-    def run_clustering(self, cv_img, color_mode):
-        cluster_results = super().run_clustering(cv_img, color_mode)
+    def run_clustering(self, cv_img, color_mode, crop_bounds):
+        cluster_results = super().run_clustering(cv_img, color_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_
         color_labels = cluster_results.labels_
@@ -244,8 +249,8 @@ class MeanShiftImageClusterer(BaseImageClusterer):
         super().__init__(sklearn.cluster.MeanShift, self._param_config)
 
 
-    def run_clustering(self, cv_img, color_mode):
-        cluster_results = super().run_clustering(cv_img, color_mode)
+    def run_clustering(self, cv_img, color_mode, crop_bounds):
+        cluster_results = super().run_clustering(cv_img, color_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_
         color_labels = cluster_results.labels_
