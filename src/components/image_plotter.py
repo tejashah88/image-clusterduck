@@ -5,7 +5,7 @@ ROI_PEN_WIDTH = 2
 
 
 class ImagePlotter(pg.PlotWidget):
-    """ A wrapper for pg.PlotWidget that allows easy ROI integration, image switching and pixel-click events. """
+    """ A wrapper for pg.PlotWidget that displays images with easy ROI integration, image switching, and crosshairs for pixel info capturing. """
     def __init__(self, title='', size=(600, 450), img=None, enable_roi=False, enable_crosshair=False):
         # Create and initialize plotting widget
         super().__init__()

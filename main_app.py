@@ -14,6 +14,7 @@ from src.constants import *
 from src.cv_img import CvImg
 from src.components.qtrangeslider import QRangeSlider
 from src.components.image_plotter import ImagePlotter
+from src.components.image_hist_plotter import ImageHistPlotter
 from src.components.plot_3d import Plot3D
 from src.gui_busy_lock import GuiBusyLock
 from src.image_clusterers import *
@@ -22,7 +23,6 @@ from src.multi_threading import QWorker
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
 DEFAULT_MAX_PIXELS = 10 ** 6
-HIST_COLORS = ('r', 'g', 'b')
 
 # NOTE: These constants will be initialized later
 SCREEN_WIDTH = -1
@@ -341,18 +341,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.main_grid_layout.addWidget(self.channel_plot, 0, 1)
         self.main_grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
 
-
-        # TODO: HIGHLY EXPERIMENTAL
-        hist_plot = pg.PlotWidget()
-        hist_plot.setTitle('Color Histogram')
-        hist_plot.setFixedSize(*optimal_plot_size)
-        for i, color in enumerate(HIST_COLORS):
-            hist = cv2.calcHist([self.curr_image], [i], None, [256], [0, 256]).squeeze()
-            hist_plot.plot(hist, stepMode=not True, fillLevel=0, pen=color)
-            hist_plot.autoRange()
-
-        self.main_grid_layout.addWidget(hist_plot, 0, 2)
-
+        # Setup the color histogram plot
+        self.color_hist_plot = ImageHistPlotter(size=optimal_plot_size)
+        self.color_hist_plot.plot_hist(self.curr_image)
+        self.main_grid_layout.addWidget(self.color_hist_plot, 0, 2)
 
         # Setup settings/data tabs
         info_tabs = QtGui.QTabWidget()
@@ -530,6 +522,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
             self.glvw_color_vis.remove_cluster_plot()
             self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
+            self.color_hist_plot.plot_hist(self.curr_image)
 
             self.channel_cbox.clear()
             self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
