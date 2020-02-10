@@ -151,6 +151,24 @@ def setup_axes_links(leader_plot, follower_plots):
         plot.setXLink(leader_plot)
         plot.setYLink(leader_plot)
 
+
+# Load image with approximate max number of pixels
+def load_image_max_pixels(input_img, max_pixels):
+    num_pixels = image_num_pixels(input_img)
+    if num_pixels > max_pixels:
+        resize_factor = 1 / ( (num_pixels / max_pixels) ** 0.5 )
+        resized_img = cv2.resize(input_img, None, fx=resize_factor, fy=resize_factor)
+    else:
+        resized_img = input_img[:, :, :]
+
+    return (resized_img, resize_factor)
+
+
+# Returns the number of pixels in a 2D or 3D image
+def image_num_pixels(img):
+    return np.product(img.shape[:2])
+
+
 # Interpret image data as row-major instead of col-major
 pg.setConfigOptions(imageAxisOrder='row-major')
 
@@ -263,16 +281,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 print(f'Error: Unable to load image from {img_path}')
                 return
 
-            height, width = input_img.shape[:2]
-            num_pixels = width * height
-            if num_pixels > max_pixels:
-                resize_factor = 1 / ( (num_pixels / max_pixels) ** 0.5 )
-                print('Resize factor:', resize_factor)
-                input_img = cv2.resize(input_img, None, fx=resize_factor, fy=resize_factor)
-
-            self.cv_img = CvImg.from_ndarray(input_img)
-
+            num_pixels = image_num_pixels(input_img)
             print('Original number of pixels:', num_pixels)
+
+            resized_img, resize_factor = load_image_max_pixels(input_img, max_pixels)
+            print('Resize factor:', resize_factor)
+
+            self.cv_img = CvImg.from_ndarray(resized_img)
 
             if self.gui_ready:
                 self.orig_img_plot.set_image(self.cv_img.RGB)
