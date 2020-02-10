@@ -34,13 +34,13 @@ CLUSTER_ALGORITHMS = {
     'Mini Batch K-Means'            : MiniBatchKMeansImageClusterer(),
     'Affinity Propagation'          : AffinityPropagationImageClusterer(),
     'Mean Shift'                    : MeanShiftImageClusterer(),
-    'Spectral Clustering'           : None,
-    'Ward Hierarchical Clustering'  : None,
-    'Agglomerative Clustering'      : None,
-    'DBSCAN'                        : None,
-    'OPTICS'                        : None,
-    'Gaussian Mixtures'             : None,
-    'Birch'                         : None,
+    # 'Spectral Clustering'           : None,
+    # 'Ward Hierarchical Clustering'  : None,
+    # 'Agglomerative Clustering'      : None,
+    # 'DBSCAN'                        : None,
+    # 'OPTICS'                        : None,
+    # 'Gaussian Mixtures'             : None,
+    # 'Birch'                         : None,
 }
 
 ALL_CLUSTER_ALGORITHMS = list(CLUSTER_ALGORITHMS.keys())
