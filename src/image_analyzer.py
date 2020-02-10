@@ -317,12 +317,36 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Lay everything out for general data tab
         self.general_data_layout = QtGui.QGridLayout()
 
-        self.crosshair_info = QtGui.QLabel()
-        show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, lambda x, y, color: self.crosshair_info.setText(f'({x}, {y}, {color})'))
-        self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
-        self.general_data_layout.addWidget(self.crosshair_info, 0, 0, 1, 2)
+        # Setup the data tree widget
+        self.general_data = {
+            'Mouse Location': np.array([-1, -1]),
+            'Color at Mouse (RGB)': np.array([-1, -1, -1]),
+            'Thresh Ch 1': np.array(self.channel_thresholds[0]),
+            'Thresh Ch 2': np.array(self.channel_thresholds[1]),
+            'Thresh Ch 3': np.array(self.channel_thresholds[2]),
+        }
 
-        # Add dummy label widget to squish all widgets to the top
+        self.data_tree = pg.DataTreeWidget()
+        self.data_tree.setData(self.general_data, hideRoot=True)
+
+        # Resize first two columns since they won't change
+        self.data_tree.resizeColumnToContents(0)
+        self.data_tree.resizeColumnToContents(1)
+
+        def handle_on_mouse_hover(x, y, color):
+            self.general_data['Mouse Location'] = np.array([x, y])
+            self.general_data['Color at Mouse (RGB)'] = color
+            self.data_tree.setData(self.general_data, hideRoot=True)
+
+            # Resize the data column after update the data tree
+            self.data_tree.resizeColumnToContents(2)
+
+        show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, handle_on_mouse_hover)
+        self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
+
+        self.general_data_layout.addWidget(self.data_tree, 0, 0, 1, 2)
+
+        # HACK: Add dummy label widget to squish all widgets to the top
         self.general_data_layout.addWidget(QtGui.QLabel(''), 1, 0, 999, 2)
 
         # Place all general data widgets in "Data" tab
@@ -383,7 +407,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.general_settings_layout.addWidget(channel_thresh_slider, thresh_row_offset + i, 1)
             self.all_channel_thresh_sliders += [channel_thresh_slider]
 
-        # Add dummy label widget to squish all widgets to the top
+        # HACK: Add dummy label widget to squish all widgets to the top
         self.general_settings_layout.addWidget(QtGui.QLabel(''), 6, 0, 999, 2)
 
         # Place all general settings widgets in "Settings" tab
@@ -415,7 +439,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.run_clustering_button.clicked.connect(self.on_run_clustering)
         self.clustering_settings_layout.addWidget(self.run_clustering_button, 2, 0, 1, 2)
 
-        # Add dummy label widget to squish all widgets to the top
+        # HACK: Add dummy label widget to squish all widgets to the top
         self.clustering_settings_layout.addWidget(QtGui.QLabel(''), 3, 0, 999, 2)
 
         # Place all cluster settings widgets in "Clustering" tab
