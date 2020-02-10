@@ -168,7 +168,7 @@ class KMeansImageClusterer(BaseImageClusterer):
         super().__init__(sklearn.cluster.KMeans, self._param_config)
 
 
-    def run_clustering(self, cv_img, color_mode, crop_bounds):
+    def run_clustering(self, cv_img, color_mode, crop_bounds=None):
         cluster_results = super().run_clustering(cv_img, color_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_
@@ -198,7 +198,7 @@ class MiniBatchKMeansImageClusterer(BaseImageClusterer):
         super().__init__(sklearn.cluster.MiniBatchKMeans, self._param_config)
 
 
-    def run_clustering(self, cv_img, color_mode, crop_bounds):
+    def run_clustering(self, cv_img, color_mode, crop_bounds=None):
         cluster_results = super().run_clustering(cv_img, color_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_
@@ -223,7 +223,7 @@ class AffinityPropagationImageClusterer(BaseImageClusterer):
         super().__init__(sklearn.cluster.AffinityPropagation, self._param_config)
 
 
-    def run_clustering(self, cv_img, color_mode, crop_bounds):
+    def run_clustering(self, cv_img, color_mode, crop_bounds=None):
         cluster_results = super().run_clustering(cv_img, color_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_
@@ -249,7 +249,7 @@ class MeanShiftImageClusterer(BaseImageClusterer):
         super().__init__(sklearn.cluster.MeanShift, self._param_config)
 
 
-    def run_clustering(self, cv_img, color_mode, crop_bounds):
+    def run_clustering(self, cv_img, color_mode, crop_bounds=None):
         cluster_results = super().run_clustering(cv_img, color_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_

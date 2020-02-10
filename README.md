@@ -9,8 +9,8 @@ A Python GUI app for visualizing color distributions on images across various co
 * 3D color-based scatterplot for color distribution
 * 3D channel-specific scatterplot
 * Cropping and channel-specific thresholding
-* Color cluster visualization using `scikit-learn` (WIP)
-* Color histogram visualization (WIP)
+* Color clustering visualization using `scikit-learn` (WIP)
+* Color histogram visualization
 
 ## Installation
 1. Clone this repo
@@ -20,4 +20,3 @@ A Python GUI app for visualizing color distributions on images across various co
 ## TODO
 * Implement Clustering Visualization based on `scikit-learn`: https://scikit-learn.org/stable/modules/clustering.html
 * Implement PCA analysis (probably) based on `scikit-learn`
-* Implement Histogram Visualization

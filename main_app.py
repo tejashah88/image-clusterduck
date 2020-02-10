@@ -585,6 +585,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.roi = self.orig_img_plot.roi_item
             self.roi.sigRegionChanged.connect(self.on_crop_modify)
         else:
+            self.roi.sigRegionChanged.disconnect()
             self.orig_img_plot.disable_roi_rect()
 
         self.on_img_modify()
@@ -607,7 +608,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         if not self.is_clustering:
             self.run_clustering_button.setEnabled(False)
 
-            self.cluster_worker = QWorker(self.clusterer_controller.run_clustering, self.cv_img, self.color_mode)
+            self.cluster_worker = QWorker(self.clusterer_controller.run_clustering, self.cv_img, self.color_mode, self.roi_bounds)
 
             def process_cluster_results(results):
                 color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations = results
