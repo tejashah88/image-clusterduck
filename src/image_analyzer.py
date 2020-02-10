@@ -539,4 +539,9 @@ if __name__ == '__main__':
         gui.bind_to_main_window(MainWindow)
         MainWindow.show()
 
+        # HACK: This dummy timer lets us properly Ctrl+C from the app
+        timer = QtCore.QTimer()
+        timer.timeout.connect(lambda: None)
+        timer.start(100)
+
         sys.exit(app.exec_())
