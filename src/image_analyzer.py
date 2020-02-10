@@ -239,12 +239,20 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     @property
     def curr_img_scatterplot(self):
-        return img_scatterplot(self.cv_img, self.color_mode, crop_bounds=self.roi_bounds, thresh_bounds=self.channel_thresholds)
+        return img_scatterplot(
+            self.cv_img, self.color_mode,
+            crop_bounds=self.roi_bounds,
+            thresh_bounds=self.channel_thresholds if self.apply_thresh else None
+        )
 
 
     @property
     def curr_pos_color_scatterplot(self):
-        return pos_color_scatterplot(self.cv_img, self.color_mode, self.ch_index, crop_bounds=self.roi_bounds, thresh_bounds=self.channel_thresholds)
+        return pos_color_scatterplot(
+            self.cv_img, self.color_mode, self.ch_index,
+            crop_bounds=self.roi_bounds,
+            thresh_bounds=self.channel_thresholds if self.apply_thresh else None
+        )
 
 
     def load_image(self, img_path, max_pixels=MAX_PIXELS):
