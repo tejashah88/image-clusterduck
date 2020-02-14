@@ -316,7 +316,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
             if self.gui_ready:
                 self.orig_img_plot.set_image(self.cv_img.RGB)
                 self.on_color_space_change(self.cs_index)
-                self.on_img_modify()
 
 
     def setup_gui(self):
@@ -526,13 +525,16 @@ class MyWindow(pg.GraphicsLayoutWidget):
         with GuiBusyLock(self):
             self.cs_index = cspace_index
 
-            self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+            self.on_img_modify()
+            self.channel_plot.autoRange()
             self.glvw_color_vis.remove_cluster_plot()
-            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
-            self.color_hist_plot.plot_hist(self.curr_image_cropped)
 
+            # NOTE: temporarily disable the 'currentIndexChanged' since
+            # it'll be triggered when removing and adding new items
+            self.channel_cbox.currentIndexChanged.disconnect()
             self.channel_cbox.clear()
             self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
+            self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
             for i in range(3):
                 channel_label = self.all_channel_labels[i]
@@ -541,21 +543,17 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 channel_thresh_slider = self.all_channel_thresh_sliders[i]
                 channel_thresh_slider.values = (0, 255)
 
-            self.on_channel_view_change(self.ch_index)
+
+            self.channel_plot.setTitle(title=self.channel_mode)
 
 
     def on_channel_view_change(self, ch_index):
         with GuiBusyLock(self):
             self.ch_index = ch_index
 
-            # Update the title
             self.channel_plot.setTitle(title=self.channel_mode)
-
-            # Update the image
-            self.channel_plot.set_image(img=self.curr_image_slice)
-
-            # Update the scatterplot
-            self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
+            self.on_img_modify()
+            self.channel_plot.autoRange()
 
 
     def on_cluster_algo_change(self, cluster_index):
