@@ -492,10 +492,16 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.cluster_settings_widget.setLayout(cluster_sub_settings_layout)
         self.clustering_settings_layout.addWidget(self.cluster_settings_widget, 1, 0, 1, 2)
 
-        # Setup clustering button
+        # Setup clustering buttons
         self.run_clustering_button = QtGui.QPushButton('Run Clustering')
         self.run_clustering_button.clicked.connect(self.on_run_clustering)
-        self.clustering_settings_layout.addWidget(self.run_clustering_button, 2, 0, 1, 2)
+        self.run_clustering_button.setEnabled(True)
+        self.clustering_settings_layout.addWidget(self.run_clustering_button, 2, 0)
+
+        self.cancel_clustering_button = QtGui.QPushButton('Cancel Clustering')
+        self.cancel_clustering_button.clicked.connect(self.on_cancel_clustering)
+        self.cancel_clustering_button.setEnabled(False)
+        self.clustering_settings_layout.addWidget(self.cancel_clustering_button, 2, 1)
 
         # HACK: Add dummy label widget to squish all widgets to the top
         self.clustering_settings_layout.addWidget(QtGui.QLabel(''), 3, 0, 999, 2)
@@ -640,6 +646,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def on_run_clustering(self):
         if not self.is_clustering:
             self.run_clustering_button.setEnabled(False)
+            self.cancel_clustering_button.setEnabled(True)
 
             self.cluster_worker = QWorker(self.clusterer_controller.run_clustering, self.cv_img, self.color_mode, self.roi_bounds)
 
@@ -655,12 +662,20 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
             def handle_cluster_finish():
                 self.run_clustering_button.setEnabled(True)
+                self.cancel_clustering_button.setEnabled(False)
                 self.cluster_worker = None
+
 
             self.cluster_worker.signals.result.connect(process_cluster_results)
             self.cluster_worker.signals.error.connect(handle_cluster_error)
             self.cluster_worker.signals.finished.connect(handle_cluster_finish)
             self.threadpool.start(self.cluster_worker)
+
+
+    def on_cancel_clustering(self):
+        if self.is_clustering:
+            # TODO
+            print('Requested to cancel clustering')
 
 
     def on_img_modify(self):
