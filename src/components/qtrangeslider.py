@@ -23,11 +23,13 @@ class HandleOption:
     DoubleHandles = LeftHandle | RightHandle
 
 class QRangeSlider(QtGui.QWidget):
+    # "Realtime" events
     rangeChanged = QtCore.pyqtSignal(int, int)
     valueChanged = QtCore.pyqtSignal(int, int)
     lowerValueChanged = QtCore.pyqtSignal(int)
     upperValueChanged = QtCore.pyqtSignal(int)
 
+    # "Final state" events
     def __init__(self, orientation=QtCore.Qt.Horizontal, range_type=HandleOption.DoubleHandles, parent=None):
         super().__init__(parent=parent)
 

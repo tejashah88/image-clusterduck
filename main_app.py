@@ -292,7 +292,12 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     def load_image_file(self, img_path, max_pixels):
-        self.load_image(cv2.imread(img_path), max_pixels)
+        input_img = cv2.imread(img_path)
+        if input_img is None:
+            print(f'Error: Unable to load image from "{img_path}"')
+            return
+
+        self.load_image(input_img, max_pixels)
 
 
     def load_image(self, input_img, max_pixels):
@@ -300,10 +305,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
             max_pixels = self.num_pixels_loaded
 
         with GuiBusyLock(self):
-            if input_img is None:
-                print(f'Error: Unable to load image from {img_path}')
-                return
-
             self.input_img = input_img
             num_pixels = image_num_pixels(self.input_img)
             print('Original number of pixels:', num_pixels)
@@ -395,7 +396,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.general_settings_layout.addWidget(QtGui.QLabel('Channel:'), 2, 0)
         self.general_settings_layout.addWidget(self.channel_cbox, 2, 1)
 
-        # Setup cropping checkbox
+        # Setup cropping checkboxes
         self.apply_crop_box = QtGui.QCheckBox()
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
@@ -403,6 +404,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.general_settings_layout.addWidget(self.apply_crop_box, 3, 1)
 
         # Setup thresholding checkbox
+        # Setup thresholding checkboxes
         self.apply_thresh_box = QtGui.QCheckBox()
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
@@ -655,7 +657,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
         open_image_action = QtGui.QAction('Open Image', self)
         open_image_action.setShortcut('Ctrl+O')
         open_image_action.setStatusTip('Open Image')
-        open_image_action.triggered.connect(lambda: self.load_image_file(self.open_image_file_dialog(), self.num_pixels_loaded))
+
+        def on_img_file_select():
+            img_path = self.open_image_file_dialog()
+            if len(img_path) > 0:
+                self.load_image_file(img_path, self.num_pixels_loaded)
+
+        open_image_action.triggered.connect(on_img_file_select)
         file_menu.addAction(open_image_action)
 
         exit_action = QtGui.QAction('Exit', self)
