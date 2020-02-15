@@ -30,6 +30,10 @@ class QRangeSlider(QtGui.QWidget):
     upperValueChanged = QtCore.pyqtSignal(int)
 
     # "Final state" events
+    valueChangedFinished = QtCore.pyqtSignal(int, int)
+    lowerValueChangedFinished = QtCore.pyqtSignal(int)
+    upperValueChangedFinished = QtCore.pyqtSignal(int)
+
     def __init__(self, orientation=QtCore.Qt.Horizontal, range_type=HandleOption.DoubleHandles, parent=None):
         super().__init__(parent=parent)
 
@@ -165,6 +169,10 @@ class QRangeSlider(QtGui.QWidget):
     def mouseReleaseEvent(self, event):
         self.first_handle_pressed = False
         self.second_handle_pressed = False
+
+        self.valueChangedFinished.emit(self.lower_val, self.upper_val)
+        self.lowerValueChangedFinished.emit(self.lower_val)
+        self.upperValueChangedFinished.emit(self.upper_val)
 
 
     def changeEvent(self, event):

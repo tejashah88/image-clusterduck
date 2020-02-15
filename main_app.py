@@ -203,6 +203,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.apply_crop = False
         self.apply_thresh = False
+        self.mod_img_realtime = False
 
         self.num_pixels_loaded = DEFAULT_MAX_PIXELS
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
@@ -378,14 +379,22 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.general_settings_layout.addWidget(QtGui.QLabel('Max Pixels (10^x):'), 0, 0)
         self.general_settings_layout.addWidget(self.max_pixels_slider, 0, 1)
 
+        # Setup image realtime modding check box
+        self.mod_img_realtime_box = QtGui.QCheckBox()
+        self.mod_img_realtime_box.setChecked(self.mod_img_realtime)
+        self.mod_img_realtime_box.toggled.connect(self.on_mod_img_realtime_toggle)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Realtime updates:'), 1, 0)
+        self.general_settings_layout.addWidget(self.mod_img_realtime_box, 1, 1)
+
+
         # Setup color space combo box
         self.color_space_cbox = QtGui.QComboBox()
         self.color_space_cbox.addItems(ALL_COLOR_SPACES)
         self.color_space_cbox.setCurrentIndex(self.cs_index)
         self.color_space_cbox.currentIndexChanged.connect(self.on_color_space_change)
 
-        self.general_settings_layout.addWidget(QtGui.QLabel('Color Space:'), 1, 0)
-        self.general_settings_layout.addWidget(self.color_space_cbox, 1, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Color Space:'), 2, 0)
+        self.general_settings_layout.addWidget(self.color_space_cbox, 2, 1)
 
         # Setup channel combo box
         self.channel_cbox = QtGui.QComboBox()
@@ -393,29 +402,27 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_cbox.setCurrentIndex(self.ch_index)
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
-        self.general_settings_layout.addWidget(QtGui.QLabel('Channel:'), 2, 0)
-        self.general_settings_layout.addWidget(self.channel_cbox, 2, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Channel:'), 3, 0)
+        self.general_settings_layout.addWidget(self.channel_cbox, 3, 1)
 
         # Setup cropping checkboxes
         self.apply_crop_box = QtGui.QCheckBox()
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
-        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Cropping:'), 3, 0)
-        self.general_settings_layout.addWidget(self.apply_crop_box, 3, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Cropping:'), 4, 0)
+        self.general_settings_layout.addWidget(self.apply_crop_box, 4, 1)
 
-        # Setup thresholding checkbox
         # Setup thresholding checkboxes
         self.apply_thresh_box = QtGui.QCheckBox()
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
-        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Thresholding:'), 4, 0)
-        self.general_settings_layout.addWidget(self.apply_thresh_box, 4, 1)
+        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Thresholding:'), 5, 0)
+        self.general_settings_layout.addWidget(self.apply_thresh_box, 5, 1)
 
         # Setup thresholding sliders for all channels
-        thresh_row_offset = 5
+        thresh_row_offset = 6
         self.all_channel_thresh_sliders = []
         self.all_channel_labels = []
-        channel_thresh_value_changed = lambda i: (lambda lower, upper: self.on_thresh_change(i, lower, upper))
 
         for i in range(3):
             # Setup thresholding channel label
@@ -428,7 +435,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
             channel_thresh_slider.range = (0, 255)
             channel_thresh_slider.values = (0, 255)
             channel_thresh_slider.setEnabled(False)
-            channel_thresh_slider.valueChanged.connect(channel_thresh_value_changed(i))
             self.general_settings_layout.addWidget(channel_thresh_slider, thresh_row_offset + i, 1)
             self.all_channel_thresh_sliders += [channel_thresh_slider]
 
@@ -448,7 +454,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         for i, label in enumerate(cs_labels):
             self.data_tree[f'Threshold Ch {i + 1}'] = np.array(self.channel_thresholds[i])
 
-        self.general_settings_layout.addWidget(self.data_tree, 8, 0, 1, 2)
+        self.general_settings_layout.addWidget(self.data_tree, 9, 0, 1, 2)
 
         def handle_on_mouse_hover(x, y, color):
             self.data_tree['Mouse Location'] = np.array([x, y])
@@ -459,7 +465,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
         # HACK: Add dummy label widget to squish all widgets to the top
-        self.general_settings_layout.addWidget(QtGui.QLabel(''), 9, 0, 999, 2)
+        self.general_settings_layout.addWidget(QtGui.QLabel(''), 10, 0, 999, 2)
 
         # Place all general settings widgets in 'Settings' tab
         general_data_settings_tab.setLayout(self.general_settings_layout)
@@ -592,18 +598,35 @@ class MyWindow(pg.GraphicsLayoutWidget):
         if self.apply_crop:
             self.orig_img_plot.enable_roi_rect()
             self.roi = self.orig_img_plot.roi_item
-            self.roi.sigRegionChanged.connect(self.on_crop_modify)
+            # HACK: Being too lazy to write separate function to hook into sigRegionChanged
+            self.roi.sigRegionChanged.connect(lambda: [self.on_crop_modify() if self.mod_img_realtime else None])
+            self.roi.sigRegionChangeFinished.connect(self.on_crop_modify)
         else:
             self.roi.sigRegionChanged.disconnect()
+            self.roi.sigRegionChangeFinished.disconnect()
             self.orig_img_plot.disable_roi_rect()
 
         self.on_img_modify()
 
 
+    def on_mod_img_realtime_toggle(self, should_mod_img_realtime):
+        self.mod_img_realtime = should_mod_img_realtime
+
+
     def on_apply_thresh_toggle(self, should_apply_thresh):
         self.apply_thresh = should_apply_thresh
-        for thresh_slider in self.all_channel_thresh_sliders:
-            thresh_slider.setEnabled(self.apply_thresh)
+        for (i, channel_thresh_slider) in enumerate(self.all_channel_thresh_sliders):
+            channel_thresh_slider.setEnabled(self.apply_thresh)
+
+            channel_thresh_value_changed_realtime = lambda i: (lambda lower, upper: [self.on_thresh_change(i, lower, upper) if self.mod_img_realtime else None])
+            channel_thresh_value_changed = lambda i: (lambda lower, upper: self.on_thresh_change(i, lower, upper))
+
+            if self.apply_thresh:
+                channel_thresh_slider.valueChanged.connect(channel_thresh_value_changed_realtime(i))
+                channel_thresh_slider.valueChangedFinished.connect(channel_thresh_value_changed(i))
+            else:
+                channel_thresh_slider.valueChanged.disconnect()
+                channel_thresh_slider.valueChangedFinished.disconnect()
 
         self.on_img_modify()
 
