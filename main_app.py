@@ -316,6 +316,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.cv_img = CvImg.from_ndarray(resized_img)
 
             if self.gui_ready:
+                self.data_tree['Total Pixels'] = num_pixels
                 self.orig_img_plot.set_image(self.cv_img.RGB)
                 self.on_color_space_change(self.cs_index)
 
