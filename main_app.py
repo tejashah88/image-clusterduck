@@ -1,5 +1,6 @@
 import os
 import traceback
+from multiprocessing import Process, Queue
 
 import numpy as np
 import cv2
@@ -19,7 +20,6 @@ from src.components.global_data_tree import GlobalDataTreeWidget
 from src.components.plot_3d import Plot3D
 from src.gui_busy_lock import GuiBusyLock
 from src.image_clusterers import *
-from src.multi_threading import QWorker
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
@@ -208,9 +208,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.num_pixels_loaded = DEFAULT_MAX_PIXELS
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
         self.cluster_worker = None
-
-        self.threadpool = QtCore.QThreadPool()
-        print('Multithreading with maximum %d threads' % self.threadpool.maxThreadCount())
 
 
     @property
@@ -640,7 +637,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     @property
     def is_clustering(self):
-        return self.cluster_worker is not None
+        return self.cluster_worker is not None and self.cluster_worker.is_alive()
 
 
     def on_run_clustering(self):
@@ -648,34 +645,34 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.run_clustering_button.setEnabled(False)
             self.cancel_clustering_button.setEnabled(True)
 
-            self.cluster_worker = QWorker(self.clusterer_controller.run_clustering, self.cv_img, self.color_mode, self.roi_bounds)
-
-            def process_cluster_results(results):
+            def _run_clustering(cv_img, color_mode, roi_bounds):
+                results = self.clusterer_controller.run_clustering(cv_img, color_mode, roi_bounds)
                 color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations = results
+
                 self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
-
-            def handle_cluster_error(err):
-                ex = err[1]
-                stacktrace = ''.join(traceback.format_tb(ex.__traceback__))
-                print(f'{ex}\n{stacktrace}')
-                QtGui.QMessageBox.warning(self, 'Alert!', f'A problem occurred when running the clustering algorithm:\n{ex}')
-
-            def handle_cluster_finish():
                 self.run_clustering_button.setEnabled(True)
                 self.cancel_clustering_button.setEnabled(False)
-                self.cluster_worker = None
 
+            self.cluster_worker = Process(target=_run_clustering, args=(self.cv_img, self.color_mode, self.roi_bounds))
+            self.cluster_worker.daemon = True
 
-            self.cluster_worker.signals.result.connect(process_cluster_results)
-            self.cluster_worker.signals.error.connect(handle_cluster_error)
-            self.cluster_worker.signals.finished.connect(handle_cluster_finish)
-            self.threadpool.start(self.cluster_worker)
+            print('Starting clustering job...')
+            self.cluster_worker.start()
+            print('done!')
 
 
     def on_cancel_clustering(self):
         if self.is_clustering:
-            # TODO
-            print('Requested to cancel clustering')
+            print('Canceling current clustering job...', end='')
+
+            self.cluster_worker.terminate()
+            self.cluster_worker.join()
+
+            self.glvw_color_vis.remove_cluster_plot()
+            self.run_clustering_button.setEnabled(True)
+            self.cancel_clustering_button.setEnabled(False)
+
+            print('done!')
 
 
     def on_img_modify(self):
