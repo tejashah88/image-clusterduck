@@ -79,12 +79,6 @@ class CvImg:
 
 
     @property
-    def HLS(self):
-        ''' Get HLS format of image. '''
-        return cv2.cvtColor(self.image, cv2.COLOR_BGR2HLS_FULL)
-
-
-    @property
     def HSV(self):
         ''' Get HSV format of image. '''
         return cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV_FULL)

@@ -4,7 +4,7 @@
 A Python GUI app for visualizing color distributions on images across various color spaces for image clustering.
 
 ## Features
-* Supports 9 different color spaces to visualize
+* Supports 7 different color spaces to visualize
 * All common image formats supported
 * 3D color-based scatterplot for color distribution
 * 3D channel-specific scatterplot
