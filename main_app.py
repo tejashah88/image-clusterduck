@@ -20,7 +20,7 @@ from src.components.image_hist_plotter import ImageHistPlotter
 from src.components.global_data_tree import GlobalDataTreeWidget
 from src.components.plot_3d import Plot3D
 from src.gui_busy_lock import GuiBusyLock
-from src.image_clusterers import *
+from src.image_clusterers import CLUSTER_ALGORITHMS
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
 SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
@@ -30,6 +30,8 @@ DEFAULT_MAX_PIXELS = 10 ** 6
 SCREEN_WIDTH = -1
 SCREEN_HEIGHT = -1
 
+ALL_CLUSTER_ALGORITHMS = list(CLUSTER_ALGORITHMS.keys())
+IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
 
 CLUSTER_ALGORITHMS = {
     'K-Means'                       : KMeansImageClusterer(),
@@ -202,7 +204,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.ch_index = 0
         self.cs_index = 0
-        self.cluster_index = 0
+        self.cluster_algo_index = 0
 
         self.orig_img_plot = None
         self.glvw_color_vis = None
@@ -339,7 +341,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Setup widgets according to grid layout
         self.main_grid_layout = QtGui.QGridLayout()
 
-        # Optimal plot size is determined so that the app takes 75% total width and 80% total height
+        # Optimal plot size is determined so that the app takes 75% total width and 80% total height (for 2 plots high and 3 plots wide)
         optimal_plot_size = (SCREEN_WIDTH // 4, SCREEN_HEIGHT // 2.5)
 
         # Setup main plots
@@ -362,7 +364,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.main_grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
 
         # Setup the color histogram plot
-        self.color_hist_plot = ImageHistPlotter(size=optimal_plot_size)
+        self.color_hist_plot = ImageHistPlotter(title='Color Histogram', size=optimal_plot_size)
         self.color_hist_plot.plot_hist(self.curr_image_cropped)
         self.main_grid_layout.addWidget(self.color_hist_plot, 0, 2)
 
@@ -499,16 +501,16 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.clustering_settings_layout = QtGui.QGridLayout()
 
         # Setup clustering algorithm combo box
-        self.cluster_cbox = QtGui.QComboBox()
-        self.cluster_cbox.addItems(ALL_CLUSTER_ALGORITHMS)
-        self.cluster_cbox.setCurrentIndex(self.cluster_index)
-        self.cluster_cbox.currentIndexChanged.connect(self.on_cluster_algo_change)
+        self.cluster_algo_cbox = QtGui.QComboBox()
+        self.cluster_algo_cbox.addItems(ALL_CLUSTER_ALGORITHMS)
+        self.cluster_algo_cbox.setCurrentIndex(self.cluster_algo_index)
+        self.cluster_algo_cbox.currentIndexChanged.connect(self.on_cluster_algo_change)
 
         self.clustering_settings_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 0, 0)
-        self.clustering_settings_layout.addWidget(self.cluster_cbox, 0, 1)
+        self.clustering_settings_layout.addWidget(self.cluster_algo_cbox, 0, 1)
 
         # Setup the cluster sub-settings widgets
-        self.clusterer_controller = IMG_CLUSTERERS[self.cluster_index]
+        self.clusterer_controller = IMG_CLUSTERERS[self.cluster_algo_index]
         cluster_sub_settings_layout = self.clusterer_controller.setup_settings_layout()
 
         self.cluster_settings_widget = QtGui.QWidget()
@@ -563,7 +565,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         with GuiBusyLock(self):
             self.cs_index = cspace_index
 
-            # NOTE: temporarily disable the 'currentIndexChanged' since
+            # NOTE: Temporarily disable the 'currentIndexChanged' since
             # it'll be triggered when removing and adding new items
             self.channel_cbox.currentIndexChanged.disconnect()
             self.channel_cbox.clear()
@@ -594,10 +596,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.channel_plot.autoRange()
 
 
-    def on_cluster_algo_change(self, cluster_index):
-        self.cluster_index = cluster_index
+    def on_cluster_algo_change(self, cluster_algo_index):
+        self.cluster_algo_index = cluster_algo_index
 
-        self.clusterer_controller = IMG_CLUSTERERS[self.cluster_index]
+        self.clusterer_controller = IMG_CLUSTERERS[self.cluster_algo_index]
         cluster_settings_layout = self.clusterer_controller.setup_settings_layout()
 
         old_widget = self.cluster_settings_widget

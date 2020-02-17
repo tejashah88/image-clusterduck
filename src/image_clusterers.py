@@ -201,3 +201,17 @@ class MeanShiftImageClusterer(BaseImageClusterer):
         num_iterations = cluster_results.n_iter_
 
         return (color_centers, color_labels, rgb_color_centers, -1, num_iterations)
+
+
+CLUSTER_ALGORITHMS = {
+    'K-Means'                 : KMeansImageClusterer(),
+    'Mini Batch K-Means'      : MiniBatchKMeansImageClusterer(),
+    'Affinity Propagation'    : AffinityPropagationImageClusterer(),
+    'Mean Shift'              : MeanShiftImageClusterer(),
+    # 'Spectral Clustering'     : None,
+    # 'Agglomerative Clustering': None,
+    # 'DBSCAN'                  : None,
+    # 'OPTICS'                  : None,
+    # 'Gaussian Mixtures'       : None,
+    # 'Birch'                   : None,
+}
