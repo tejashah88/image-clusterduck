@@ -13,6 +13,9 @@ class GlobalDataTreeWidget(pg.DataTreeWidget):
 
 
     def __setitem__(self, key, value):
+        if key not in self.global_data:
+            raise Exception(f'Error: "{key}" not found in global data tree')
+
         self.global_data[key] = value
         self.update_data()
 
