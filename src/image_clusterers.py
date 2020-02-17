@@ -9,12 +9,11 @@ import cv2
 # import h5py
 
 from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.parametertree import Parameter, ParameterTree
 
 from .constants import *
 
 
-ALLOWED_GUI_COMPONENTS = ['spinbox', 'dropdown', 'slider', 'checkbox']
-PARAM_CONFIG_COLUMNS = ['name', 'internal_name', 'title', 'gui_component', 'default_val', 'metadata', 'transform_fn']
 NUM_CPUS = multiprocessing.cpu_count()
 
 INT_MAX = 2**31 - 1
@@ -43,100 +42,43 @@ class BaseImageClusterer:
         self.layout = None
         self.params = {}
         self.clusterer = clusterer_algo()
-        self.param_config = pd.DataFrame(_param_config, columns=PARAM_CONFIG_COLUMNS)
-        self.init_clustering_params()
+        self.param_config = _param_config
+        self.set_clustering_params()
 
 
     def setup_settings_layout(self):
         settings_layout = QtGui.QGridLayout()
 
-        for index, param_row in self.param_config.iterrows():
-            param_name = param_row['name']
-            param_internal_name = param_row['internal_name']
-            param_title = param_row['title']
-            param_gui_component = param_row['gui_component']
-            param_default_val = param_row['default_val']
-            param_metadata = param_row['metadata']
-            param_transform_fn = param_row['transform_fn']
+        pobj = Parameter.create(name='params', type='group', children=self.param_config)
 
-            settings_layout.addWidget(QtGui.QLabel(f'{param_title}:'), index, 0)
-            setting_widget = None
+        def on_param_change(param, changes):
+            for param, change, data in changes:
+                internal_name   = param.opts['iname']
+                self.params[internal_name] = param.value()
 
-            if param_gui_component == 'spinbox':
-                min_val, max_val, step_val = param_metadata
+        pobj.sigTreeStateChanged.connect(on_param_change)
 
-                setting_widget = QtGui.QSpinBox()
-                setting_widget.setMinimum(min_val)
-                setting_widget.setMaximum(max_val)
-                setting_widget.setSingleStep(step_val)
-                setting_widget.setValue(param_default_val)
+        ptree = ParameterTree()
+        ptree.setParameters(pobj, showTop=False)
 
-                gen_on_spinbox_value_changed = lambda pname: (lambda val: self.set_clustering_params({ pname: val }))
-                on_spinbox_value_changed = gen_on_spinbox_value_changed(param_name)
-
-                setting_widget.valueChanged.connect(on_spinbox_value_changed)
-            elif param_gui_component == 'dropdown':
-                choices = param_metadata
-
-                setting_widget = QtGui.QComboBox()
-                setting_widget.addItems(choices)
-
-                gen_on_dropdown_value_changed = lambda pname, choices: (lambda index: self.set_clustering_params({ pname: choices[index] }))
-                on_dropdown_value_changed = gen_on_dropdown_value_changed(param_name, choices)
-
-                setting_widget.currentIndexChanged.connect(on_dropdown_value_changed)
-            elif param_gui_component == 'slider':
-                min_val, max_val, step_val = param_metadata
-
-                setting_widget = QtGui.QSlider(QtCore.Qt.Horizontal)
-                setting_widget.setMinimum(min_val)
-                setting_widget.setMaximum(max_val)
-                setting_widget.setSingleStep(step_val)
-                setting_widget.setValue(param_default_val)
-
-                gen_on_slider_value_changed = lambda pname: (lambda val: self.set_clustering_params({ pname: val }))
-                on_slider_value_changed = gen_on_slider_value_changed(param_name)
-
-                setting_widget.valueChanged.connect(on_slider_value_changed)
-            elif param_gui_component == 'checkbox':
-                setting_widget = QtGui.QCheckBox()
-                setting_widget.setChecked(param_default_val)
-
-                gen_on_checkbox_value_changed = lambda pname: (lambda val: self.set_clustering_params({ pname: val }))
-                on_checkbox_value_changed = gen_on_checkbox_value_changed(param_name)
-
-                setting_widget.toggled.connect(on_checkbox_value_changed)
-
-            settings_layout.addWidget(setting_widget, index, 1)
-
+        settings_layout.addWidget(ptree, 0, 0)
         return settings_layout
 
 
-    def init_clustering_params(self, params={}):
-        for index, param_row in self.param_config.iterrows():
-            param_name = param_row['name']
-            param_curr_val = params.get(param_name)
-            param_default_val = param_row['default_val']
-            param_transform_fn = param_row['transform_fn'] or (lambda args: args)
-            self.params[param_name] = param_transform_fn(param_curr_val if param_curr_val is not None else param_default_val)
-
-
     def set_clustering_params(self, params={}):
-        for param_name in params:
+        for param_row in self.param_config:
+            param_name = param_row['iname']
             param_curr_val = params.get(param_name)
-            param_row = self.param_config[self.param_config['name'] == param_name]
-            param_default_val = param_row['default_val'].tolist()[0]
-            param_transform_fn = param_row['transform_fn'].tolist()[0] or (lambda args: args)
-            self.params[param_name] = param_transform_fn(param_curr_val if param_curr_val is not None else param_default_val)
+            param_default_val = param_row['value']
+            self.params[param_name] = param_curr_val if param_curr_val is not None else param_default_val
 
 
     def run_clustering(self, cv_img, color_mode, crop_bounds=None):
         cluster_params = {}
 
-        for index, param_row in self.param_config.iterrows():
-            param_name = param_row['name']
-            param_internal_name = param_row['internal_name']
-            cluster_params[param_internal_name] = self.params[param_name]
+        for param_row in self.param_config:
+            param_name = param_row['iname']
+            cluster_params[param_name] = self.params[param_name]
 
         self.clusterer.set_params(**cluster_params)
 
@@ -154,14 +96,14 @@ class BaseImageClusterer:
 class KMeansImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
     _param_config = [
-        ('num_clusters', 'n_clusters', 'Number of clusters', 'spinbox' , 8       , (1, INT_MAX, 1)          , None),
-        ('init_centers', 'init'      , 'Initial centers'   , 'dropdown', 'random', ('random', 'k-means++')  , None),
-        ('repeat_count', 'n_init'    , 'Number of runs'    , 'spinbox' , 10      , (1, INT_MAX, 1)          , None),
-        ('max_iter'    , 'max_iter'  , 'Max interations'   , 'spinbox' , 300     , (1, INT_MAX, 1)          , None),
-        ('tolerance'   , 'tol'       , 'Tolerance'         , 'slider'  , -4      , (-10, 10, 1)             , lambda val: 10**val),
-        ('num_jobs'    , 'n_jobs'    , 'Number of jobs'    , 'spinbox' , 1       , (1, NUM_CPUS, 1)         , None),
-        ('algorithm'   , 'algorithm' , 'Algorithm type'    , 'dropdown', 'auto'  , ('auto', 'full', 'elkan'), None),
-        ('verbose'     , 'verbose'   , 'Verbose Logging'   , 'checkbox', False   , None                     , None),
+        {'name': 'Number of clusters', 'type': 'int' , 'value': 8       , 'limits': (1, INT_MAX)             , 'iname': 'n_clusters'},
+        {'name': 'Initial centers'   , 'type': 'list', 'value': 'random', 'values': ['random', 'k-means++']  , 'iname': 'init'      },
+        {'name': 'Number of runs'    , 'type': 'int' , 'value': 10      , 'limits': (1, INT_MAX)             , 'iname': 'n_init'    },
+        {'name': 'Max iterations'    , 'type': 'int' , 'value': 300     , 'limits': (1, INT_MAX)             , 'iname': 'max_iter'  },
+        {'name': 'Tolerance'         , 'type': 'int' , 'value': 1e-4    , 'limits': (1e-10, 1e+10)           , 'iname': 'tol'       , 'dec': True},
+        {'name': 'Number of jobs'    , 'type': 'int' , 'value': 1       , 'limits': (1, NUM_CPUS)            , 'iname': 'n_jobs'    },
+        {'name': 'Algorithm type'    , 'type': 'list', 'value': 'auto'  , 'values': ['auto', 'full', 'elkan'], 'iname': 'algorithm' },
+        {'name': 'Verbose Logging'   , 'type': 'bool', 'value': False                                        , 'iname': 'verbose'   },
     ]
 
     def __init__(self):
@@ -183,15 +125,16 @@ class KMeansImageClusterer(BaseImageClusterer):
 class MiniBatchKMeansImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html
     _param_config = [
-        ('num_clusters'  , 'n_clusters'        , 'Number of clusters'   , 'spinbox' , 8       , (1, INT_MAX, 1)        , None),
-        ('init_centers'  , 'init'              , 'Initial centers'      , 'dropdown', 'random', ('random', 'k-means++'), None),
-        ('repeat_count'  , 'n_init'            , 'Number of runs'       , 'spinbox' , 10      , (1, INT_MAX, 1)        , None),
-        ('max_iter'      , 'max_iter'          , 'Max interations'      , 'spinbox' , 300     , (1, INT_MAX, 1)        , None),
-        ('tolerance'     , 'tol'               , 'Tolerance'            , 'slider'  , -4      , (-10, 10, 1)           , lambda val: 10**val),
-        ('batch_size'    , 'batch_size'        , 'Batch Size'           , 'spinbox' , 100     , (1, INT_MAX, 1)        , None),
-        ('iter_plateau'  , 'max_no_improvement', 'Max iteration plateau', 'spinbox' , 10      , (0, INT_MAX, 1)        , None),
-        ('reassign_ratio', 'reassignment_ratio', 'Reassignment Ratio'   , 'spinbox' , 10      , (0, 1000, 1)           , None),
-        ('verbose'       , 'verbose'           , 'Verbose Logging'      , 'checkbox', False   , None                   , None),
+        {'name': 'Number of clusters'   , 'type': 'int'  , 'value': 8       , 'limits': (1, INT_MAX)           , 'iname': 'n_clusters'        },
+        {'name': 'Initial centers'      , 'type': 'list' , 'value': 'random', 'values': ['random', 'k-means++'], 'iname': 'init'              },
+        {'name': 'Number of runs'       , 'type': 'int'  , 'value': 10      , 'limits': (1, INT_MAX)           , 'iname': 'n_init'            },
+        {'name': 'Max iterations'       , 'type': 'int'  , 'value': 300     , 'limits': (1, INT_MAX)           , 'iname': 'max_iter'          },
+        {'name': 'Tolerance'            , 'type': 'float', 'value': 1e-4    , 'limits': (1e-10, 1e+10)         , 'iname': 'tol'               , 'dec': True},
+        ## FIXME: See above default value (0)
+        {'name': 'Batch Size'           , 'type': 'int'  , 'value': 100     , 'limits': (1, INT_MAX)           , 'iname': 'batch_size'        },
+        {'name': 'Max iteration plateau', 'type': 'int'  , 'value': 10      , 'limits': (0, INT_MAX)           , 'iname': 'max_no_improvement'},
+        {'name': 'Reassignment Ratio'   , 'type': 'float', 'value': 0.01    , 'limits': (0, 1)                 , 'iname': 'reassignment_ratio', 'step': 0.001},
+        {'name': 'Verbose Logging'      , 'type': 'bool' , 'value': False                                      , 'iname': 'verbose'           },
     ]
 
     def __init__(self):
@@ -213,10 +156,10 @@ class MiniBatchKMeansImageClusterer(BaseImageClusterer):
 class AffinityPropagationImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AffinityPropagation.html
     _param_config = [
-        ('damping'      , 'damping'         , 'Damping Factor'       , 'slider'  , 50   , (50, 99, 1)       , lambda val: val / 100),
-        ('max_iter'     , 'max_iter'        , 'Max interations'      , 'spinbox' , 200  , (1, INT_MAX, 1)   , None),
-        ('converge_iter', 'convergence_iter', 'Max Convergence Iters', 'spinbox' , 15   , (1, INT_MAX, 1)   , None),
-        ('verbose'      , 'verbose'         , 'Verbose Logging'      , 'checkbox', False, None              , None),
+        {'name': 'Damping Factor'       , 'type': 'float', 'value': 0.50    , 'limits': (0.50, 0.99), 'iname': 'damping'         , 'step': 0.001},
+        {'name': 'Max iterations'       , 'type': 'int'  , 'value': 200     , 'limits': (1, INT_MAX), 'iname': 'max_iter'        },
+        {'name': 'Max Convergence Iters', 'type': 'int'  , 'value': 15      , 'limits': (1, INT_MAX), 'iname': 'convergence_iter'},
+        {'name': 'Verbose Logging'      , 'type': 'bool' , 'value': False                           , 'iname': 'verbose'         },
     ]
 
     def __init__(self):
@@ -237,12 +180,13 @@ class AffinityPropagationImageClusterer(BaseImageClusterer):
 class MeanShiftImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MeanShift.html
     _param_config = [
-        ('bandwidth'    , 'bandwidth'   , 'Bandwidth'            , 'spinbox' , -1   , (-1, INT_MAX, 1), lambda val: val if val > 0 else None),
-        ('bin_seeding'  , 'bin_seeding' , 'Binned Seeding'       , 'checkbox', False, None            , None),
-        ('min_bin_freq' , 'min_bin_freq', 'Minimum Bin Frequency', 'spinbox' , 1    , (1, INT_MAX, 1) , None),
-        ('cluster_all'  , 'cluster_all' , 'Cluster all'          , 'checkbox', True , None            , None),
-        ('num_jobs'     , 'n_jobs'      , 'Number of jobs'       , 'spinbox' , 1    , (1, NUM_CPUS, 1), None),
-        ('max_iter'     , 'max_iter'    , 'Max interations'      , 'spinbox' , 300  , (1, INT_MAX, 1) , None),
+        {'name': 'Bandwidth'            , 'type': 'int' , 'value': -1   , 'limits': (-1, INT_MAX), 'iname': 'bandwidth'   },
+        ## FIXME: See above default value (0)
+        {'name': 'Binned Seeding'       , 'type': 'bool', 'value': False,                          'iname': 'bin_seeding' },
+        {'name': 'Minimum Bin Frequency', 'type': 'int' , 'value': 1    , 'limits': (1, INT_MAX) , 'iname': 'min_bin_freq'},
+        {'name': 'Cluster all points'   , 'type': 'bool', 'value': True ,                          'iname': 'cluster_all' },
+        {'name': 'Number of jobs'       , 'type': 'int' , 'value': 1    , 'limits': (1, NUM_CPUS), 'iname': 'n_jobs'      },
+        {'name': 'Max iterations'       , 'type': 'int' , 'value': 300  , 'limits': (1, INT_MAX) , 'iname': 'max_iter'    },
     ]
 
     def __init__(self):

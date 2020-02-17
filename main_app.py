@@ -422,7 +422,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.general_settings_layout.addWidget(QtGui.QLabel('Channel:'), 3, 0)
         self.general_settings_layout.addWidget(self.channel_cbox, 3, 1)
 
-        # Setup cropping checkboxes
+        # Setup cropping checkbox
         self.apply_crop_box = QtGui.QCheckBox()
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
