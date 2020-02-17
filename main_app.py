@@ -367,6 +367,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.max_pixels_slider.setMinimum(0)
         self.max_pixels_slider.setMaximum(10)
         self.max_pixels_slider.setValue(6)
+        self.max_pixels_slider.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.max_pixels_slider.setTickInterval(1)
 
         def on_max_pixels_slider_change(val):
             self.num_pixels_loaded = 10 ** val
