@@ -190,7 +190,6 @@ pg.setConfigOptions(imageAxisOrder='row-major')
 class MyWindow(pg.GraphicsLayoutWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Image Cluster Analysis')
 
         self.input_img = None
         self.cv_img = None
@@ -218,6 +217,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.cluster_future = None
         self.cluster_check_timer = None
+
+        self.main_window = None
 
 
     @property
@@ -315,6 +316,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 exit(-1)
 
         self.load_image(input_img, max_pixels)
+        self.set_window_title(f'Now viewing "{img_path.split("/")[-1]}"')
 
 
     def load_image(self, input_img, max_pixels):
@@ -555,12 +557,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     def bind_to_main_window(self, main_window):
-        main_window.setCentralWidget(self)
+        self.main_window = main_window
+        self.main_window.setCentralWidget(self)
 
-        self.setup_menubar(main_window)
-        self.setup_statusbar(main_window)
+        self.setup_menubar(self.main_window)
+        self.setup_statusbar(self.main_window)
 
-        main_window.resize(self.size())
+        self.autosize()
 
 
     def open_image_file_dialog(self):
@@ -808,7 +811,16 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     def show_status(self, text, timeout=0):
-        self.statusbar.showMessage(text, timeout)
+        if self.statusbar is not None:
+            self.statusbar.showMessage(text, timeout)
+
+
+    def set_window_title(self, text):
+        if self.main_window is not None:
+            self.main_window.setWindowTitle(text)
+
+    def autosize(self):
+        self.main_window.resize(self.size())
 
 
 ## Start Qt event loop unless running in interactive mode.
@@ -828,6 +840,7 @@ if __name__ == '__main__':
         gui.load_image_file(DEFAULT_IMG_FILENAME, DEFAULT_MAX_PIXELS)
         gui.setup_gui()
         gui.bind_to_main_window(MainWindow)
+        gui.set_window_title(f'Now viewing "{DEFAULT_IMG_FILENAME.split("/")[-1]}"')
         MainWindow.show()
 
         # HACK: This dummy timer lets us properly Ctrl+C from the app
