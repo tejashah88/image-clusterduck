@@ -13,11 +13,10 @@ from pyqtgraph.parametertree import Parameter, ParameterTree
 
 from .constants import *
 
-
-NUM_CPUS = multiprocessing.cpu_count()
-
 INT_MAX = 2**31 - 1
 INT_MIN = -2**31
+
+NUM_CPUS = multiprocessing.cpu_count()
 
 # hdf5_store = h5py.File('./cache.hdf5', 'a')
 

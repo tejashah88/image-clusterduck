@@ -684,6 +684,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         if not self.is_clustering:
             self.run_clustering_button.setEnabled(False)
             self.cancel_clustering_button.setEnabled(True)
+            self.glvw_color_vis.remove_cluster_plot()
 
 
             @concurrent.process
