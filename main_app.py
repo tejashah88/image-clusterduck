@@ -23,7 +23,16 @@ from src.gui_busy_lock import GuiBusyLock
 from src.image_clusterers import CLUSTER_ALGORITHMS
 
 DEFAULT_IMG_FILENAME = './test-images/starry-night.jpg'
-SUPPORTED_IMG_EXTS = '*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif'
+
+DIALOG_SUPPORTED_IMG_EXTS = ''
+for title, exts in SUPPORTED_IMG_EXTS.items():
+    exts_str = ' '.join([f'*.{ext}' for ext in exts])
+    DIALOG_SUPPORTED_IMG_EXTS += f'{title} ({exts_str});;'
+DIALOG_SUPPORTED_IMG_EXTS += 'All Files (*)'
+
+HOME_DIR = os.path.expanduser('~')
+HOME_DIR = os.path.curdir # FIXME
+
 DEFAULT_MAX_PIXELS = 10 ** 6
 
 # NOTE: These constants will be initialized later
@@ -567,12 +576,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     def open_image_file_dialog(self):
-        home = os.path.expanduser('~')
-        home = os.path.curdir # FIXME
-        filename, _ = pg.FileDialog().getOpenFileName(
-            self, 'Open image file', home,
-            f'Image Files ({SUPPORTED_IMG_EXTS});;All Files (*)'
-        )
+        filename, _ = pg.FileDialog().getOpenFileName(self, 'Open image file', HOME_DIR, DIALOG_SUPPORTED_IMG_EXTS)
         return filename
 
 
