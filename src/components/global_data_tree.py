@@ -1,3 +1,4 @@
+from fdict import fdict
 import pyqtgraph as pg
 
 class GlobalDataTreeWidget(pg.DataTreeWidget):
@@ -21,12 +22,12 @@ class GlobalDataTreeWidget(pg.DataTreeWidget):
 
 
     def set_data(self, data={}):
-        self.global_data = {**self.global_data, **data}
+        self.global_data = fdict(data)
         self.update_data()
 
 
     def update_data(self):
-        super().setData(self.global_data, hideRoot=True)
+        super().setData(self.global_data.to_dict_nested(), hideRoot=True)
         self.shrink_columns_to_contents()
 
 
