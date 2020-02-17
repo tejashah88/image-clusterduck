@@ -166,18 +166,25 @@ def setup_axes_links(leader_plot, follower_plots):
 def load_image_max_pixels(input_img, max_pixels):
     num_pixels = image_num_pixels(input_img)
     if num_pixels > max_pixels:
-        resize_factor = 1 / ( (num_pixels / max_pixels) ** 0.5 )
+        resize_factor = img_resize_factor(input_img, max_pixels)
         resized_img = cv2.resize(input_img, None, fx=resize_factor, fy=resize_factor)
     else:
         resize_factor = 1
         resized_img = input_img[:, :, :]
 
-    return (resized_img, resize_factor)
+    return resized_img
 
 
 # Returns the number of pixels in a 2D or 3D image
 def image_num_pixels(img):
     return int(np.product(img.shape[:2]))
+
+# Return required resize factor to shrink image to contain given max number of pixels
+def img_resize_factor(input_img, max_pixels):
+    resize_factor = 1 / ( (image_num_pixels(input_img) / max_pixels) ** 0.5 )
+    if resize_factor < 1:
+        return resize_factor
+    return 1
 
 
 # Interpret image data as row-major instead of col-major
@@ -209,7 +216,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_thresh = False
         self.mod_img_realtime = False
 
-        self.num_pixels_loaded = DEFAULT_MAX_PIXELS
+        self.max_pixels_to_load = DEFAULT_MAX_PIXELS
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
         self.cluster_worker = None
 
@@ -304,21 +311,17 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def load_image(self, input_img, max_pixels):
         if max_pixels is None:
-            max_pixels = self.num_pixels_loaded
+            max_pixels = self.max_pixels_to_load
 
         with GuiBusyLock(self):
             self.input_img = input_img
-            num_pixels = image_num_pixels(self.input_img)
-            print('Original number of pixels:', num_pixels)
-
-            resized_img, resize_factor = load_image_max_pixels(self.input_img, max_pixels)
-            print('Resize factor:', resize_factor)
-
+            resized_img = load_image_max_pixels(self.input_img, max_pixels)
             self.cv_img = CvImg.from_ndarray(resized_img)
 
             if self.gui_ready:
-                self.data_tree['Image Info/Total Pixels'] = num_pixels
-                self.data_tree['Image Info/Pixels Loaded'] = self.num_pixels_loaded
+                self.data_tree['Image Info/Total Pixels'] = image_num_pixels(self.input_img)
+                self.data_tree['Image Info/Pixels Loaded'] = image_num_pixels(self.curr_image)
+                self.data_tree['Image Info/Resize Factor'] = img_resize_factor(self.input_img, max_pixels)
                 self.data_tree['Image Info/Original Image Size'] = np.array(self.input_img.shape[:2][::-1])
                 self.data_tree['Image Info/Loaded Image Size'] = np.array(self.curr_image.shape[:2][::-1])
 
@@ -381,9 +384,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.max_pixels_slider.setTickInterval(1)
 
         def on_max_pixels_slider_change(val):
-            self.num_pixels_loaded = 10 ** val
-            self.load_image(self.input_img, self.num_pixels_loaded)
-            self.data_tree['Image Info/Pixels Loaded'] = self.num_pixels_loaded
+            self.max_pixels_to_load = 10 ** val
+            self.load_image(self.input_img, self.max_pixels_to_load)
+            self.data_tree['Image Info/Pixels Loaded'] = image_num_pixels(self.curr_image)
 
         self.max_pixels_slider.valueChanged.connect(on_max_pixels_slider_change)
 
@@ -462,7 +465,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
             },
             'Image Info': {
                 'Total Pixels': image_num_pixels(self.input_img),
-                'Pixels Loaded': self.num_pixels_loaded,
+                'Pixels Loaded': image_num_pixels(self.curr_image),
+                'Resize Factor': img_resize_factor(self.input_img, self.max_pixels_to_load),
                 'Original Image Size': np.array(self.input_img.shape[:2][::-1]),
                 'Loaded Image Size': np.array(self.curr_image.shape[:2][::-1]),
             },
@@ -688,24 +692,17 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
             self.cluster_worker = Process(target=_run_clustering, args=(self.cv_img, self.color_mode, self.roi_bounds))
             self.cluster_worker.daemon = True
-
-            print('Starting clustering job...')
             self.cluster_worker.start()
-            print('done!')
 
 
     def on_cancel_clustering(self):
         if self.is_clustering:
-            print('Canceling current clustering job...', end='')
-
             self.cluster_worker.terminate()
             self.cluster_worker.join()
 
             self.glvw_color_vis.remove_cluster_plot()
             self.run_clustering_button.setEnabled(True)
             self.cancel_clustering_button.setEnabled(False)
-
-            print('done!')
 
 
     def on_img_modify(self):
@@ -730,7 +727,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         def on_img_file_select():
             img_path = self.open_image_file_dialog()
             if len(img_path) > 0:
-                self.load_image_file(img_path, self.num_pixels_loaded)
+                self.load_image_file(img_path, self.max_pixels_to_load)
 
         open_image_action.triggered.connect(on_img_file_select)
         file_menu.addAction(open_image_action)
