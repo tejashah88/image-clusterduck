@@ -48,14 +48,14 @@ ALL_CLUSTER_ALGORITHMS = list(CLUSTER_ALGORITHMS.keys())
 IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
 
 
-def process_img_plot_mouse_event(img_plot, fn):
+def process_img_plot_mouse_event(img_plot, curr_img, fn):
     def handle_mouse_event(mouse_pos):
         if img_plot.sceneBoundingRect().contains(mouse_pos):
             mouse_point = img_plot.getViewBox().mapSceneToView(mouse_pos)
             (mouse_x, mouse_y) = int(mouse_point.x()), int(mouse_point.y())
-            (height, width) = img_plot.img.shape[:2]
+            (height, width) = curr_img.shape[:2]
             if (0 <= mouse_y and mouse_y < height) and (0 <= mouse_x and mouse_x < width):
-                return fn(mouse_x, mouse_y, img_plot.img[mouse_y, mouse_x])
+                return fn(mouse_x, mouse_y, curr_img[mouse_y, mouse_x])
     return handle_mouse_event
 
 
@@ -173,7 +173,7 @@ def load_image_max_pixels(input_img, max_pixels):
 
 # Returns the number of pixels in a 2D or 3D image
 def image_num_pixels(img):
-    return np.product(img.shape[:2])
+    return int(np.product(img.shape[:2]))
 
 
 # Interpret image data as row-major instead of col-major
@@ -313,7 +313,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.cv_img = CvImg.from_ndarray(resized_img)
 
             if self.gui_ready:
-                self.data_tree['Total Pixels'] = num_pixels
+                self.data_tree['Image Info']['Total Pixels'] = num_pixels
+                self.data_tree['Image Info']['Pixels Loaded'] = self.num_pixels_loaded
+                self.data_tree['Image Info']['Original Image Size'] = np.array(self.input_img.shape[:2][::-1])
+                self.data_tree['Image Info']['Loaded Image Size'] = np.array(self.curr_image.shape[:2][::-1]),
                 self.orig_img_plot.set_image(self.cv_img.RGB)
                 self.on_color_space_change(self.cs_index)
 
@@ -373,7 +376,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         def on_max_pixels_slider_change(val):
             self.num_pixels_loaded = 10 ** val
             self.load_image(self.input_img, self.num_pixels_loaded)
-            self.data_tree['Pixels Loaded'] = self.num_pixels_loaded
+            self.data_tree['Image Info']['Pixels Loaded'] = self.num_pixels_loaded
         self.max_pixels_slider.valueChanged.connect(on_max_pixels_slider_change)
 
         self.general_settings_layout.addWidget(QtGui.QLabel('Max Pixels (10^x):'), 0, 0)
@@ -440,27 +443,32 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup the data tree widget
         initial_data = {
-            'Total Pixels': image_num_pixels(self.input_img),
-            'Pixels Loaded': self.num_pixels_loaded,
-            'Mouse Location': np.array([-1, -1]),
-            'Color at Mouse': np.array([-1, -1, -1]),
+            'Image Info': {
+                'Total Pixels': image_num_pixels(self.input_img),
+                'Pixels Loaded': self.num_pixels_loaded,
+                'Original Image Size': np.array(self.input_img.shape[:2][::-1]),
+                'Loaded Image Size': np.array(self.curr_image.shape[:2][::-1]),
+            },
+            'Mouse Info': {
+                'Mouse Location': np.array(None),
+                'Color at Mouse': np.array(None),
+            },
+            'Image Controls': {
+                'Crop Dimensions': np.array(self.roi_bounds),
+                'Channel Thresholds': np.array(self.channel_thresholds).T
+            }
         }
 
         self.data_tree = GlobalDataTreeWidget()
         self.data_tree.set_data(initial_data)
 
-        # Add the threshold values
-        cs_labels = COLOR_SPACE_LABELS[self.color_mode]
-        for i, label in enumerate(cs_labels):
-            self.data_tree[f'Threshold Ch {i + 1}'] = np.array(self.channel_thresholds[i])
-
         self.general_settings_layout.addWidget(self.data_tree, 9, 0, 1, 2)
 
         def handle_on_mouse_hover(x, y, color):
-            self.data_tree['Mouse Location'] = np.array([x, y])
-            self.data_tree['Color at Mouse'] = color
+            self.data_tree['Mouse Info']['Mouse Location'] = np.array([x, y])
+            self.data_tree['Mouse Info']['Color at Mouse'] = color
 
-        show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, handle_on_mouse_hover)
+        show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, self.curr_image, handle_on_mouse_hover)
         self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
 
 
@@ -590,12 +598,25 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.on_img_modify()
 
 
+    def on_crop_modify_realtime(self):
+        self.data_tree['Image Controls']['Crop Dimensions'] = np.array(self.roi_bounds)
+        if self.apply_crop and self.mod_img_realtime:
+            self.on_img_modify()
+
+
     def on_thresh_change(self, thresh_ch_index, lower_val, upper_val):
         if self.apply_thresh:
             self.channel_thresholds[thresh_ch_index] = (lower_val, upper_val)
-            self.data_tree[f'Threshold Ch {thresh_ch_index + 1}'] = np.array(self.channel_thresholds[thresh_ch_index])
-
             self.on_img_modify()
+
+
+    def on_thresh_change_realtime(self, thresh_ch_index, lower_val, upper_val):
+        if self.apply_thresh:
+            self.channel_thresholds[thresh_ch_index] = (lower_val, upper_val)
+            self.data_tree['Image Controls']['Channel Thresholds'] = np.array(self.channel_thresholds).T
+
+            if self.mod_img_realtime:
+                self.on_img_modify()
 
 
     def on_apply_crop_toggle(self, should_apply_crop):
@@ -604,14 +625,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
         if self.apply_crop:
             self.orig_img_plot.enable_roi_rect()
             self.roi = self.orig_img_plot.roi_item
-            # HACK: Being too lazy to write separate function to hook into sigRegionChanged
-            self.roi.sigRegionChanged.connect(lambda: [self.on_crop_modify() if self.mod_img_realtime else None])
+            self.roi.sigRegionChanged.connect(self.on_crop_modify_realtime)
             self.roi.sigRegionChangeFinished.connect(self.on_crop_modify)
         else:
             self.roi.sigRegionChanged.disconnect()
             self.roi.sigRegionChangeFinished.disconnect()
+            self.roi = None
             self.orig_img_plot.disable_roi_rect()
 
+        self.data_tree['Image Controls']['Crop Dimensions'] = np.array(self.roi_bounds)
         self.on_img_modify()
 
 
@@ -624,7 +646,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         for (i, channel_thresh_slider) in enumerate(self.all_channel_thresh_sliders):
             channel_thresh_slider.setEnabled(self.apply_thresh)
 
-            channel_thresh_value_changed_realtime = lambda i: (lambda lower, upper: [self.on_thresh_change(i, lower, upper) if self.mod_img_realtime else None])
+            channel_thresh_value_changed_realtime = lambda i: (lambda lower, upper: self.on_thresh_change_realtime(i, lower, upper))
             channel_thresh_value_changed = lambda i: (lambda lower, upper: self.on_thresh_change(i, lower, upper))
 
             if self.apply_thresh:
