@@ -307,8 +307,12 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def load_image_file(self, img_path, max_pixels):
         input_img = cv2.imread(img_path)
         if input_img is None:
-            print(f'Error: Unable to load image from "{img_path}"')
-            return
+            QtGui.QMessageBox.warning(self, 'Error!', f'Unable to load image from "{img_path}"')
+
+            if self.gui_ready:
+                return
+            else:
+                exit(-1)
 
         self.load_image(input_img, max_pixels)
 
