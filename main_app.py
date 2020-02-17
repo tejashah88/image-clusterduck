@@ -33,22 +33,15 @@ SCREEN_HEIGHT = -1
 ALL_CLUSTER_ALGORITHMS = list(CLUSTER_ALGORITHMS.keys())
 IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
 
-CLUSTER_ALGORITHMS = {
-    'K-Means'                       : KMeansImageClusterer(),
-    'Mini Batch K-Means'            : MiniBatchKMeansImageClusterer(),
-    'Affinity Propagation'          : AffinityPropagationImageClusterer(),
-    'Mean Shift'                    : MeanShiftImageClusterer(),
-    # 'Spectral Clustering'           : None,
-    # 'Ward Hierarchical Clustering'  : None,
-    # 'Agglomerative Clustering'      : None,
-    # 'DBSCAN'                        : None,
-    # 'OPTICS'                        : None,
-    # 'Gaussian Mixtures'             : None,
-    # 'Birch'                         : None,
+CLUSTER_INPUTS = {
+    'color'  : 'Color-only',
+    'spatial': 'Spatial-only',
+    'both'   : 'Color & Spatial',
 }
 
-ALL_CLUSTER_ALGORITHMS = list(CLUSTER_ALGORITHMS.keys())
-IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
+INTERNAL_CLUSTER_INPUTS = list(CLUSTER_INPUTS.keys())
+CLUSTER_INPUT_TYPES = list(CLUSTER_INPUTS.values())
+
 
 IMG_SCPLOT_SCALE = 4
 CH_SCPLOT_SCALE = 5
@@ -205,6 +198,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.ch_index = 0
         self.cs_index = 0
         self.cluster_algo_index = 0
+        self.cluster_input_index = 0
 
         self.orig_img_plot = None
         self.glvw_color_vis = None
@@ -240,6 +234,11 @@ class MyWindow(pg.GraphicsLayoutWidget):
     @property
     def channel_mode(self):
         return COLOR_SPACE_LABELS[self.color_mode][self.ch_index]
+
+
+    @property
+    def cluster_input_mode(self):
+        return INTERNAL_CLUSTER_INPUTS[self.cluster_input_index]
 
 
     @property
@@ -509,27 +508,36 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.clustering_settings_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 0, 0)
         self.clustering_settings_layout.addWidget(self.cluster_algo_cbox, 0, 1)
 
+        # Setup clustering algorithm input data combo box
+        self.cluster_input_cbox = QtGui.QComboBox()
+        self.cluster_input_cbox.addItems(CLUSTER_INPUT_TYPES)
+        self.cluster_input_cbox.setCurrentIndex(self.cluster_input_index)
+        self.cluster_input_cbox.currentIndexChanged.connect(self.on_cluster_input_change)
+
+        self.clustering_settings_layout.addWidget(QtGui.QLabel('Cluster Input Type:'), 1, 0)
+        self.clustering_settings_layout.addWidget(self.cluster_input_cbox, 1, 1)
+
         # Setup the cluster sub-settings widgets
         self.clusterer_controller = IMG_CLUSTERERS[self.cluster_algo_index]
         cluster_sub_settings_layout = self.clusterer_controller.setup_settings_layout()
 
         self.cluster_settings_widget = QtGui.QWidget()
         self.cluster_settings_widget.setLayout(cluster_sub_settings_layout)
-        self.clustering_settings_layout.addWidget(self.cluster_settings_widget, 1, 0, 1, 2)
+        self.clustering_settings_layout.addWidget(self.cluster_settings_widget, 2, 0, 1, 2)
 
         # Setup clustering buttons
         self.run_clustering_button = QtGui.QPushButton('Run Clustering')
         self.run_clustering_button.clicked.connect(self.on_run_clustering)
         self.run_clustering_button.setEnabled(True)
-        self.clustering_settings_layout.addWidget(self.run_clustering_button, 2, 0)
+        self.clustering_settings_layout.addWidget(self.run_clustering_button, 3, 0)
 
         self.cancel_clustering_button = QtGui.QPushButton('Cancel Clustering')
         self.cancel_clustering_button.clicked.connect(self.on_cancel_clustering)
         self.cancel_clustering_button.setEnabled(False)
-        self.clustering_settings_layout.addWidget(self.cancel_clustering_button, 2, 1)
+        self.clustering_settings_layout.addWidget(self.cancel_clustering_button, 3, 1)
 
         # HACK: Add dummy label widget to squish all widgets to the top
-        self.clustering_settings_layout.addWidget(QtGui.QLabel(''), 3, 0, 999, 2)
+        self.clustering_settings_layout.addWidget(QtGui.QLabel(''), 4, 0, 999, 2)
 
         # Place all cluster settings widgets in 'Clustering' tab
         cluster_settings_tab.setLayout(self.clustering_settings_layout)
@@ -611,6 +619,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.clustering_settings_layout.update()
 
 
+    def on_cluster_input_change(self, cluster_input_index):
+        self.cluster_input_index = cluster_input_index
+
+
     def on_crop_modify(self):
         if self.apply_crop:
             self.on_img_modify()
@@ -690,14 +702,14 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
             @concurrent.process
-            def _run_clustering(cv_img, color_mode, roi_bounds):
+            def _run_clustering(cv_img, color_mode, input_mode, roi_bounds):
                 outcome = {
                     'results': None,
                     'exception': None,
                 }
 
                 try:
-                    results = self.clusterer_controller.run_clustering(cv_img, color_mode, roi_bounds)
+                    results = self.clusterer_controller.run_clustering(cv_img, color_mode, input_mode, roi_bounds)
                     color_centers, color_labels, rgb_colored_centers, cluster_error, num_iterations = results
 
                     outcome['results'] = (color_centers, rgb_colored_centers)
@@ -738,7 +750,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
                         self.cancel_clustering_button.setEnabled(False)
 
 
-            self.cluster_future = _run_clustering(self.cv_img, self.color_mode, self.roi_bounds)
+            self.cluster_future = _run_clustering(self.cv_img, self.color_mode, self.cluster_input_mode, self.roi_bounds)
             self.cluster_check_timer = QtCore.QTimer()
             self.cluster_check_timer.timeout.connect(_check_clustering_results)
             self.cluster_check_timer.start(250)
