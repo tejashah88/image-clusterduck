@@ -203,6 +203,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.input_img = None
         self.cv_img = None
 
+        self.dataset_mode = False
+        self.dataset_imgs = []
+        self.dataset_index = None
+
         self.ch_index = 0
         self.cs_index = 0
         self.cluster_algo_index = 0
@@ -571,6 +575,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.setup_menubar(self.main_window)
         self.setup_statusbar(self.main_window)
+        self.setup_shortcuts()
 
         self.autosize()
 
@@ -578,6 +583,11 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def open_image_file_dialog(self):
         filename, _ = pg.FileDialog().getOpenFileName(self, 'Open image file', HOME_DIR, DIALOG_SUPPORTED_IMG_EXTS)
         return filename
+
+
+    def open_dataset_folder_dialog(self):
+        dirname = pg.FileDialog().getExistingDirectory(self, 'Open image dataset folder', HOME_DIR)
+        return dirname
 
 
     def on_color_space_change(self, cspace_index):
@@ -798,16 +808,58 @@ class MyWindow(pg.GraphicsLayoutWidget):
         def on_img_file_select():
             img_path = self.open_image_file_dialog()
             if len(img_path) > 0:
+                self.dataset_mode = False
+                self.dataset_imgs = []
+                self.dataset_index = None
                 self.load_image_file(img_path, self.max_pixels_to_load)
 
         open_image_action.triggered.connect(on_img_file_select)
         file_menu.addAction(open_image_action)
+
+        open_dataset_action = QtGui.QAction('Open Dataset', self)
+        open_dataset_action.setShortcut('Ctrl+Shift+O')
+        open_dataset_action.setStatusTip('Open dataset of images')
+
+        def on_dataset_folder_select():
+            dataset_dir = self.open_dataset_folder_dialog()
+            if len(dataset_dir) > 0:
+                raw_paths = [os.path.join(dataset_dir, filepath) for filepath in os.listdir(dataset_dir)]
+                dataset_image_paths = [filepath for filepath in raw_paths if os.path.isfile(filepath) and filepath.endswith(ALL_SUPPORTED_IMG_EXTS)]
+
+                self.dataset_mode = True
+                self.dataset_imgs = dataset_image_paths
+                self.dataset_index = 0
+                self.load_image_file(self.dataset_imgs[self.dataset_index], self.max_pixels_to_load)
+
+        open_dataset_action.triggered.connect(on_dataset_folder_select)
+        file_menu.addAction(open_dataset_action)
+
 
         exit_action = QtGui.QAction('Exit', self)
         exit_action.setShortcut('Ctrl+Q')
         exit_action.setStatusTip('Exit application')
         exit_action.triggered.connect(main_window.close)
         file_menu.addAction(exit_action)
+
+
+    def setup_shortcuts(self):
+        QtGui.QShortcut(QtCore.Qt.Key_Left, self, self.load_previous_image_in_dataset)
+        QtGui.QShortcut(QtCore.Qt.Key_Right, self, self.load_next_image_in_dataset)
+
+
+    def load_previous_image_in_dataset(self):
+        if self.dataset_mode:
+            self.dataset_index -= 1
+            if self.dataset_index < 0:
+                self.dataset_index += len(self.dataset_imgs)
+            self.load_image_file(self.dataset_imgs[self.dataset_index], self.max_pixels_to_load)
+
+
+    def load_next_image_in_dataset(self):
+        if self.dataset_mode:
+            self.dataset_index += 1
+            self.dataset_index %= len(self.dataset_imgs)
+            self.load_image_file(self.dataset_imgs[self.dataset_index], self.max_pixels_to_load)
 
 
     def setup_statusbar(self, main_window):
