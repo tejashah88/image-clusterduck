@@ -47,6 +47,10 @@ CLUSTER_ALGORITHMS = {
 ALL_CLUSTER_ALGORITHMS = list(CLUSTER_ALGORITHMS.keys())
 IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
 
+IMG_SCPLOT_SCALE = 4
+CH_SCPLOT_SCALE = 5
+CH_SCPLOT_SCALE_Z = 2
+CH_PLOT_GRID_SZ = 8
 
 def process_img_plot_mouse_event(img_plot, curr_img, fn):
     def handle_mouse_event(mouse_pos):
@@ -59,7 +63,7 @@ def process_img_plot_mouse_event(img_plot, curr_img, fn):
     return handle_mouse_event
 
 
-def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=3):
+def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=IMG_SCPLOT_SCALE):
     return gl.GLScatterPlotItem(
         pos=color_centers / 255 * scale_factor, color=rgb_colored_centers / 255,
         size=0.75, pxMode=not True,
@@ -67,7 +71,7 @@ def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=3):
     )
 
 
-def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, scale_factor=3):
+def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, scale_factor=IMG_SCPLOT_SCALE):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -106,7 +110,7 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, sc
     )
 
 
-def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=5, scale_z=2):
+def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=CH_SCPLOT_SCALE, scale_z=CH_SCPLOT_SCALE_Z):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -324,7 +328,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def setup_gui(self):
         if self.cv_img is None:
-            raise Exception('Error: Image has not been loaded yet! Please call load_image() or load_image_file() before calling setup_gui()')
+            raise Exception('Error: Image has not been loaded yet! Please load an image before calling setup_gui()')
 
         # Setup widgets according to grid layout
         self.main_grid_layout = QtGui.QGridLayout()
@@ -334,10 +338,12 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup main plots
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True, size=optimal_plot_size)
-        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot, axis_length=5, size=optimal_plot_size)
+        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot, size=optimal_plot_size)
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice, size=optimal_plot_size)
         self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False, size=optimal_plot_size)
+        self.glvw_channel_vis.grid_item.setPosition(x=-CH_PLOT_GRID_SZ / 2, y=-CH_PLOT_GRID_SZ / 2, z=0)
+        self.glvw_channel_vis.grid_item.setSize(x=CH_PLOT_GRID_SZ, y=CH_PLOT_GRID_SZ, z=0)
 
         # Tie the axes bewteen the original image plot and the channel sliced image plot
         setup_axes_links(self.orig_img_plot, [self.channel_plot])
@@ -550,10 +556,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         with GuiBusyLock(self):
             self.cs_index = cspace_index
 
-            self.on_img_modify()
-            self.channel_plot.autoRange()
-            self.glvw_color_vis.remove_cluster_plot()
-
             # NOTE: temporarily disable the 'currentIndexChanged' since
             # it'll be triggered when removing and adding new items
             self.channel_cbox.currentIndexChanged.disconnect()
@@ -566,10 +568,14 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 channel_label.setText(f'Threshold ({COLOR_SPACE_LABELS[self.color_mode][i]}):')
 
                 channel_thresh_slider = self.all_channel_thresh_sliders[i]
+                self.channel_thresholds[i] = (0, 255)
                 channel_thresh_slider.values = (0, 255)
 
-
             self.channel_plot.setTitle(title=self.channel_mode)
+
+            self.on_img_modify()
+            self.channel_plot.autoRange()
+            self.glvw_color_vis.remove_cluster_plot()
 
 
     def on_channel_view_change(self, ch_index):
