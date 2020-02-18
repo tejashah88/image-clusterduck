@@ -802,9 +802,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def setup_menubar(self, main_window):
         self.menubar = main_window.menuBar()
         file_menu = self.menubar.addMenu('File')
-        edit_menu = self.menubar.addMenu('Edit')
-        view_menu = self.menubar.addMenu('View')
-        tools_menu = self.menubar.addMenu('Tools')
         help_menu = self.menubar.addMenu('Help')
 
 
