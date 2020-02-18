@@ -11,6 +11,7 @@ import pyqtgraph.opengl as gl
 
 import sklearn.cluster
 from pebble import concurrent
+from mss import mss
 
 from src.constants import *
 from src.cv_img import CvImg
@@ -580,13 +581,18 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.autosize()
 
 
-    def open_image_file_dialog(self):
-        filename, _ = pg.FileDialog().getOpenFileName(self, 'Open image file', HOME_DIR, DIALOG_SUPPORTED_IMG_EXTS)
+    def open_file_dialog(self, title, supported_exts, starting_dir=HOME_DIR):
+        filename, _ = pg.FileDialog().getOpenFileName(self, title, starting_dir, supported_exts)
         return filename
 
 
-    def open_dataset_folder_dialog(self):
-        dirname = pg.FileDialog().getExistingDirectory(self, 'Open image dataset folder', HOME_DIR)
+    def save_file_dialog(self, title, supported_exts, starting_dir=HOME_DIR):
+        filename, _ = pg.FileDialog().getSaveFileName(self, title, starting_dir, supported_exts)
+        return filename
+
+
+    def open_folder_dialog(self, title, starting_dir=HOME_DIR):
+        dirname = pg.FileDialog().getExistingDirectory(self, title, starting_dir)
         return dirname
 
 
@@ -801,12 +807,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
         tools_menu = self.menubar.addMenu('Tools')
         help_menu = self.menubar.addMenu('Help')
 
+
         open_image_action = QtGui.QAction('Open Image', self)
         open_image_action.setShortcut('Ctrl+O')
         open_image_action.setStatusTip('Open Image')
 
         def on_img_file_select():
-            img_path = self.open_image_file_dialog()
+            img_path = self.open_file_dialog('Open image file', DIALOG_SUPPORTED_IMG_EXTS)
             if len(img_path) > 0:
                 self.dataset_mode = False
                 self.dataset_imgs = []
@@ -816,12 +823,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
         open_image_action.triggered.connect(on_img_file_select)
         file_menu.addAction(open_image_action)
 
+
         open_dataset_action = QtGui.QAction('Open Dataset', self)
         open_dataset_action.setShortcut('Ctrl+Shift+O')
         open_dataset_action.setStatusTip('Open dataset of images')
 
         def on_dataset_folder_select():
-            dataset_dir = self.open_dataset_folder_dialog()
+            dataset_dir = self.open_folder_dialog('Open image dataset folder')
             if len(dataset_dir) > 0:
                 raw_paths = [os.path.join(dataset_dir, filepath) for filepath in os.listdir(dataset_dir)]
                 dataset_image_paths = [filepath for filepath in raw_paths if os.path.isfile(filepath) and filepath.endswith(ALL_SUPPORTED_IMG_EXTS)]
@@ -833,6 +841,38 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         open_dataset_action.triggered.connect(on_dataset_folder_select)
         file_menu.addAction(open_dataset_action)
+
+
+        export_screenshot_action = QtGui.QAction('Export Screenshot', self)
+        export_screenshot_action.setShortcut('Ctrl+E')
+        export_screenshot_action.setStatusTip('Export screenshot of app')
+
+        def on_export_screenshot_request():
+            self.main_window.move(10, 10)
+
+            win_geometry = self.geometry()
+            position = self.mapToGlobal(self.geometry().topLeft())
+            size = self.geometry().size()
+
+            x, y = position.x(), position.y()
+            width, height = size.width(), size.height()
+
+            window_bounds = {
+                'top': y - 20,
+                'left': x,
+                'width': width,
+                'height': height,
+            }
+
+            with mss() as sct:
+                window_view = np.array(sct.grab(window_bounds))
+                window_view = cv2.cvtColor(window_view, cv2.COLOR_RGBA2RGB)
+
+            save_filepath = self.save_file_dialog('Save screenshot export', DIALOG_SUPPORTED_IMG_EXTS)
+            cv2.imwrite(save_filepath, window_view)
+
+        export_screenshot_action.triggered.connect(on_export_screenshot_request)
+        file_menu.addAction(export_screenshot_action)
 
 
         exit_action = QtGui.QAction('Exit', self)

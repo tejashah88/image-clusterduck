@@ -58,6 +58,7 @@ dependencies:
   - zlib=1.2.11=h7b6447c_3
   - pip:
     - fdict==0.8.1
+    - mss==5.0.0
     - opencv-python==4.2.0.32
     - pebble==4.5.0
 
