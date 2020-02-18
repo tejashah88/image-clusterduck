@@ -106,6 +106,7 @@ class ImagePlotter(pg.PlotWidget):
 
             self.scene().sigMouseMoved.connect(mouse_moved)
 
+
     def disable_crosshairs(self):
         if None not in [self.vLine, self.hLine]:
             self.scene().sigMouseMoved.disconnect()

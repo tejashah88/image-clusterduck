@@ -515,6 +515,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.general_settings_layout.addWidget(self.data_tree, 9, 0, 1, 2)
 
+
         def handle_on_mouse_hover(x, y, color):
             self.data_tree['Mouse Info/Mouse Location'] = np.array([x, y])
             self.data_tree['Mouse Info/Color at Mouse'] = color
@@ -631,7 +632,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
             self.channel_plot.setTitle(title=self.channel_mode)
 
-            self.on_img_modify()
+            self.update_all_plots()
             self.channel_plot.autoRange()
             self.glvw_color_vis.remove_cluster_plot()
 
@@ -641,7 +642,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.ch_index = ch_index
 
             self.channel_plot.setTitle(title=self.channel_mode)
-            self.on_img_modify()
+            self.update_all_plots()
             self.channel_plot.autoRange()
 
 
@@ -666,28 +667,32 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_crop_modify(self):
         if self.apply_crop:
-            self.on_img_modify()
+            self.update_all_plots()
 
 
     def on_crop_modify_realtime(self):
-        self.data_tree['Image Controls/Crop Dimensions'] = np.array(self.roi_bounds)
-        if self.apply_crop and self.mod_img_realtime:
-            self.on_img_modify()
+        if self.apply_crop:
+            self.data_tree['Image Controls/Crop Dimensions'] = np.array(self.roi_bounds)
+            self.update_2d_plots()
+
+            if self.mod_img_realtime:
+                self.update_3d_plots()
 
 
     def on_thresh_change(self, thresh_ch_index, lower_val, upper_val):
         if self.apply_thresh:
             self.channel_thresholds[thresh_ch_index] = (lower_val, upper_val)
-            self.on_img_modify()
+            self.update_all_plots()
 
 
     def on_thresh_change_realtime(self, thresh_ch_index, lower_val, upper_val):
         if self.apply_thresh:
             self.channel_thresholds[thresh_ch_index] = (lower_val, upper_val)
             self.data_tree['Image Controls/Channel Thresholds'] = np.array(self.channel_thresholds).T
+            self.update_2d_plots()
 
             if self.mod_img_realtime:
-                self.on_img_modify()
+                self.update_3d_plots()
 
 
     def on_apply_crop_toggle(self, should_apply_crop):
@@ -705,7 +710,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.orig_img_plot.disable_roi_rect()
 
         self.data_tree['Image Controls/Crop Dimensions'] = np.array(self.roi_bounds)
-        self.on_img_modify()
+        self.update_all_plots()
 
 
     def on_mod_img_realtime_toggle(self, should_mod_img_realtime):
@@ -727,7 +732,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 channel_thresh_slider.valueChanged.disconnect()
                 channel_thresh_slider.valueChangedFinished.disconnect()
 
-        self.on_img_modify()
+        self.update_all_plots()
 
 
     @property
@@ -806,11 +811,19 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.cancel_clustering_button.setEnabled(False)
 
 
-    def on_img_modify(self):
-        self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
-        self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
+    def update_2d_plots(self):
         self.channel_plot.set_image(self.curr_image_slice, auto_range=False)
         self.color_hist_plot.plot_hist(self.curr_image_cropped, self.curr_image_gray_cropped)
+
+
+    def update_3d_plots(self):
+        self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
+        self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
+
+
+    def update_all_plots(self):
+        self.update_2d_plots()
+        self.update_3d_plots()
 
 
     def setup_menubar(self, main_window):
