@@ -15,14 +15,18 @@ class ImageHistPlotter(pg.PlotWidget):
         self.setFixedSize(*size)
 
 
-    def plot_hist(self, img):
+    def plot_hist(self, img, img_gray):
         # Clear and previous plots
         self.clear()
 
-        # Calculate the histograms and plot them
+        # Calculate the channel histograms and plot them
         for i, color in enumerate(HIST_COLORS):
-            hist = cv2.calcHist([img], [i], None, [256], [0, 256]).squeeze()
-            self.plot(hist, stepMode=not True, fillLevel=0, pen=color)
+            hist_ch = cv2.calcHist([img], [i], None, [256], [0, 256]).squeeze()
+            self.plot(hist_ch, stepMode=not True, fillLevel=0, pen=color)
+
+        # Calculate the gray histogram and plot it
+        hist_gray = cv2.calcHist([img_gray], [0], None, [256], [0, 256]).squeeze()
+        self.plot(hist_gray, stepMode=not True, fillLevel=0, pen='w')
 
         # Resize the plot so that it fits within the view
         self.autoRange()

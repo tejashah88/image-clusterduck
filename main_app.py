@@ -262,12 +262,26 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
 
     @property
+    def curr_image_gray(self):
+        return self.cv_img.GRAY
+
+
+    @property
     def curr_image_cropped(self):
         if self.apply_crop:
             x_min, y_min, x_max, y_max = self.roi_bounds
             return self.curr_image[y_min:y_max, x_min:x_max]
         else:
             return self.curr_image
+
+
+    @property
+    def curr_image_gray_cropped(self):
+        if self.apply_crop:
+            x_min, y_min, x_max, y_max = self.roi_bounds
+            return self.curr_image_gray[y_min:y_max, x_min:x_max]
+        else:
+            return self.curr_image_gray
 
 
     @property
@@ -383,8 +397,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.main_grid_layout.addWidget(self.glvw_channel_vis, 1, 1)
 
         # Setup the color histogram plot
-        self.color_hist_plot = ImageHistPlotter(title='Color Histogram', size=optimal_plot_size)
-        self.color_hist_plot.plot_hist(self.curr_image_cropped)
+        self.color_hist_plot = ImageHistPlotter(title='Color/Gray Histogram', size=optimal_plot_size)
+        self.color_hist_plot.plot_hist(self.curr_image_cropped, self.curr_image_gray_cropped)
         self.main_grid_layout.addWidget(self.color_hist_plot, 0, 2)
 
         # Setup settings/data tabs
@@ -796,7 +810,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
         self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
         self.channel_plot.set_image(self.curr_image_slice, auto_range=False)
-        self.color_hist_plot.plot_hist(self.curr_image_cropped)
+        self.color_hist_plot.plot_hist(self.curr_image_cropped, self.curr_image_gray_cropped)
 
 
     def setup_menubar(self, main_window):
