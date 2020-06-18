@@ -1,7 +1,7 @@
 # image-clusterduck
 ![Image analysis of Starry Night Sky](github-images/example-view.png "Image analysis of Starry Night Sky")
 
-A Python GUI app for visualizing color distributions on images across various color spaces for image clustering.
+Exploring the unknown color-spatial space continuum with 3D visualizations and unsupervised machine learning, one pixel at a time.
 
 ## Features
 * Supports 7 different color spaces to visualize
