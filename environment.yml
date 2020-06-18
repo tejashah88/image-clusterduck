@@ -1,4 +1,4 @@
-name: image-clusterfuck
+name: image-clusterduck
 channels:
   - defaults
   - conda-forge

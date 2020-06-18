@@ -1,4 +1,4 @@
-# image-clusterfuck
+# image-clusterduck
 ![Image analysis of Starry Night Sky](github-images/example-view.png "Image analysis of Starry Night Sky")
 
 A Python GUI app for visualizing color distributions on images across various color spaces for image clustering.
