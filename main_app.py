@@ -296,16 +296,14 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     @property
     def roi_bounds(self):
-        if self.roi is not None:
-            height, width = self.cv_img.RGB.shape[:2]
-            if self.apply_crop:
-                x, y, w, h = self.roi.parentBounds().toAlignedRect().getRect()
-                x_min, y_min = max(x, 0), max(y, 0)
-                x_max, y_max = min(x + w, width), min(y + h, height)
-                return (x_min, y_min, x_max, y_max)
-            else:
-                return (0, 0, width, height)
-        return None
+        height, width = self.cv_img.RGB.shape[:2]
+        if self.apply_crop:
+            x, y, w, h = self.roi.parentBounds().toAlignedRect().getRect()
+            x_min, y_min = max(x, 0), max(y, 0)
+            x_max, y_max = min(x + w, width), min(y + h, height)
+            return (x_min, y_min, x_max, y_max)
+        else:
+            return (0, 0, width, height)
 
 
     @property
@@ -498,8 +496,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 'Channel Thresholds': np.array(self.channel_thresholds).T
             },
             'Mouse Info': {
-                'Mouse Location': np.array(None),
-                'Color at Mouse': np.array(None),
+                'Mouse Location': np.array([-1, -1]),
+                'Color at Mouse': np.array([-1, -1, -1]),
             },
             'Image Info': {
                 'Total Pixels': image_num_pixels(self.input_img),
