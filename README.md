@@ -16,7 +16,7 @@ Exploring the unknown color-spatial space continuum with 3D visualizations and u
 
 ## Installation
 1. Clone this repo
-2. Create conda environment from `.yml` file
+2. Create virtual environment from `requirements.txt`
 3. Run `python main_app.py`
 
 ## TODO
