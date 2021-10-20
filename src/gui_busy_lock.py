@@ -17,6 +17,5 @@ class GuiBusyLock(object):
     def __exit__(self, *args):
         self.busy_cursor.__exit__(*args)
 
-        if len(pg.BusyCursor.active) == 0:
-            self.parent.setWindowModality(QtCore.Qt.NonModal)
-            QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
+        self.parent.setWindowModality(QtCore.Qt.NonModal)
+        QtGui.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))

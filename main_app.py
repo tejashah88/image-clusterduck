@@ -117,8 +117,8 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, sc
 
 
 def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=CH_SCPLOT_SCALE, scale_z=CH_SCPLOT_SCALE_Z):
-    rgb_img = cv_img.RGB
-    converted_img = cv_img[color_mode]
+    rgb_img = cv_img.RGB.copy()
+    converted_img = cv_img[color_mode].copy()
 
     if crop_bounds is not None:
         x_min, y_min, x_max, y_max = crop_bounds
@@ -138,22 +138,24 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
     c_arr, r_arr = np.meshgrid(np.arange(cols), np.arange(rows))
     channel_arr = converted_img[:, :, ch_index]
 
-    thresh_indicies = ( (channel_arr < lower_ch) | (channel_arr > upper_ch) )
-    r_arr[thresh_indicies] = -1
-    c_arr[thresh_indicies] = -1
-    channel_arr[thresh_indicies] = -1
+    keep_indicies = ( (channel_arr > lower_ch) & (channel_arr < upper_ch) )
+    flat_keep_indices = keep_indicies.flatten()
 
-    pos_arr = np.vstack( (r_arr.flatten(), c_arr.flatten(), channel_arr.flatten()) ).T
-    color_arr = rgb_img.reshape(-1, 3) / 255
-
-    non_zero_pixels = np.all(pos_arr >= 0, axis=1)
-    pos_arr = pos_arr[non_zero_pixels]
-    color_arr = color_arr[non_zero_pixels]
+    flat_r_arr = r_arr.flatten()[flat_keep_indices]
+    flat_c_arr = c_arr.flatten()[flat_keep_indices]
+    flat_channel_arr = channel_arr.flatten()[flat_keep_indices]
 
     scaled_dim = scale_factor / max(rows, cols)
     scaled_z = scale_z / 255
 
-    pos_arr = ( pos_arr - (rows // 2, cols // 2, 0) ) * (scaled_dim, scaled_dim, scaled_z)
+    flat_r_arr = (flat_r_arr - rows // 2) * scaled_dim
+    flat_c_arr = (flat_c_arr - cols // 2) * scaled_dim
+    flat_channel_arr = flat_channel_arr * scaled_z
+
+    pos_arr = np.vstack( (flat_r_arr, flat_c_arr, flat_channel_arr) ).T
+
+    color_arr = rgb_img.reshape(-1, 3)  / 255
+    color_arr = color_arr[flat_keep_indices, :]
 
     return gl.GLScatterPlotItem(
         pos=pos_arr, color=color_arr,
