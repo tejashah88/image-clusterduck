@@ -7,7 +7,7 @@ import cv2
 
 # import h5py
 
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 from pyqtgraph.parametertree import Parameter, ParameterTree
 
 from .constants import *
@@ -45,7 +45,7 @@ class BaseImageClusterer:
 
 
     def setup_settings_layout(self):
-        settings_layout = QtGui.QGridLayout()
+        settings_layout = QtWidgets.QGridLayout()
 
         pobj = Parameter.create(name='params', type='group', children=self.param_config)
 
@@ -99,8 +99,7 @@ class KMeansImageClusterer(BaseImageClusterer):
         {'name': 'Number of runs'    , 'type': 'int' , 'value': 10      , 'limits': (1, INT_MAX)             , 'iname': 'n_init'    },
         {'name': 'Max iterations'    , 'type': 'int' , 'value': 300     , 'limits': (1, INT_MAX)             , 'iname': 'max_iter'  },
         {'name': 'Tolerance'         , 'type': 'int' , 'value': 1e-4    , 'limits': (1e-10, 1e+10)           , 'iname': 'tol'       , 'dec': True},
-        {'name': 'Number of jobs'    , 'type': 'int' , 'value': 1       , 'limits': (1, NUM_CPUS)            , 'iname': 'n_jobs'    },
-        {'name': 'Algorithm type'    , 'type': 'list', 'value': 'auto'  , 'values': ['auto', 'full', 'elkan'], 'iname': 'algorithm' },
+        {'name': 'Algorithm type'    , 'type': 'list', 'value': 'lloyd'  , 'values': ['lloyd', 'elkan']      , 'iname': 'algorithm' },
         {'name': 'Verbose Logging'   , 'type': 'bool', 'value': False                                        , 'iname': 'verbose'   },
     ]
 
@@ -125,11 +124,11 @@ class MiniBatchKMeansImageClusterer(BaseImageClusterer):
     _param_config = [
         {'name': 'Number of clusters'   , 'type': 'int'  , 'value': 8       , 'limits': (1, INT_MAX)           , 'iname': 'n_clusters'        },
         {'name': 'Initial centers'      , 'type': 'list' , 'value': 'random', 'values': ['random', 'k-means++'], 'iname': 'init'              },
-        {'name': 'Number of runs'       , 'type': 'int'  , 'value': 10      , 'limits': (1, INT_MAX)           , 'iname': 'n_init'            },
+        {'name': 'Number of runs'       , 'type': 'int'  , 'value': 3       , 'limits': (1, INT_MAX)           , 'iname': 'n_init'            },
         {'name': 'Max iterations'       , 'type': 'int'  , 'value': 300     , 'limits': (1, INT_MAX)           , 'iname': 'max_iter'          },
         {'name': 'Tolerance'            , 'type': 'float', 'value': 1e-4    , 'limits': (1e-10, 1e+10)         , 'iname': 'tol'               , 'dec': True},
         ## FIXME: See above default value (0)
-        {'name': 'Batch Size'           , 'type': 'int'  , 'value': 100     , 'limits': (1, INT_MAX)           , 'iname': 'batch_size'        },
+        {'name': 'Batch Size'           , 'type': 'int'  , 'value': 1024    , 'limits': (1, INT_MAX)           , 'iname': 'batch_size'        },
         {'name': 'Max iteration plateau', 'type': 'int'  , 'value': 10      , 'limits': (0, INT_MAX)           , 'iname': 'max_no_improvement'},
         {'name': 'Reassignment Ratio'   , 'type': 'float', 'value': 0.01    , 'limits': (0, 1)                 , 'iname': 'reassignment_ratio', 'step': 0.001},
         {'name': 'Verbose Logging'      , 'type': 'bool' , 'value': False                                      , 'iname': 'verbose'           },

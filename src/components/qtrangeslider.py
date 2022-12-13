@@ -1,6 +1,6 @@
 # Source: https://github.com/ThisIsClark/Qt-RangeSlider
 
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
 
 
@@ -22,7 +22,7 @@ class HandleOption:
     RightHandle = 0x2
     DoubleHandles = LeftHandle | RightHandle
 
-class QRangeSlider(QtGui.QWidget):
+class QRangeSlider(QtWidgets.QWidget):
     # "Realtime" events
     rangeChanged = QtCore.pyqtSignal(int, int)
     valueChanged = QtCore.pyqtSignal(int, int)
@@ -261,7 +261,7 @@ class QRangeSlider(QtGui.QWidget):
             val = self._minimum
 
 
-        self._lower_val = val
+        self._lower_val = int(val)
         self.valueChanged.emit(self.lower_val, self.upper_val)
         self.lowerValueChanged.emit(self.lower_val)
 
@@ -281,7 +281,7 @@ class QRangeSlider(QtGui.QWidget):
         if val < self._minimum:
             val = self._minimum
 
-        self._upper_val = val
+        self._upper_val = int(val)
         self.valueChanged.emit(self.lower_val, self.upper_val)
         self.upperValueChanged.emit(self.upper_val)
 
