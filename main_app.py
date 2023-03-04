@@ -5,7 +5,7 @@ from concurrent.futures import CancelledError
 import numpy as np
 import cv2
 
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
@@ -336,7 +336,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def load_image_file(self, img_path, max_pixels):
         input_img = cv2.imread(img_path)
         if input_img is None:
-            QtGui.QMessageBox.warning(self, 'Error!', f'Unable to load image from "{img_path}"')
+            QtWidgets.QMessageBox.warning(self, 'Error!', f'Unable to load image from "{img_path}"')
 
             if self.gui_ready:
                 return
@@ -372,10 +372,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
             raise Exception('Error: Image has not been loaded yet! Please load an image before calling setup_gui()')
 
         # Setup widgets according to grid layout
-        self.main_grid_layout = QtGui.QGridLayout()
+        self.main_grid_layout = QtWidgets.QGridLayout()
 
         # Optimal plot size is determined so that the app takes 75% total width and 80% total height (for 2 plots high and 3 plots wide)
-        optimal_plot_size = (SCREEN_WIDTH // 4, SCREEN_HEIGHT // 2.5)
+        optimal_plot_size = (SCREEN_WIDTH // 4, int(SCREEN_HEIGHT // 2.5))
 
         # Setup main plots
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True, size=optimal_plot_size)
@@ -402,23 +402,25 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.main_grid_layout.addWidget(self.color_hist_plot, 0, 2)
 
         # Setup settings/data tabs
-        info_tabs = QtGui.QTabWidget()
-        general_data_settings_tab = QtGui.QWidget()
-        cluster_settings_tab = QtGui.QWidget()
+        info_tabs = QtWidgets.QTabWidget()
+        settings_tab = QtWidgets.QWidget()
+        data_tab = QtWidgets.QWidget()
+        cluster_settings_tab = QtWidgets.QWidget()
 
-        info_tabs.addTab(general_data_settings_tab, 'Settings/Data')
+        info_tabs.addTab(settings_tab, 'Settings')
+        info_tabs.addTab(data_tab, 'Data')
         info_tabs.addTab(cluster_settings_tab, 'Clustering')
 
 
         # Lay everything out for general settings/data tab
-        self.general_settings_layout = QtGui.QGridLayout()
+        self.general_settings_layout = QtWidgets.QGridLayout()
 
         # Setup max pixels loading slider
-        self.max_pixels_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.max_pixels_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.max_pixels_slider.setMinimum(0)
         self.max_pixels_slider.setMaximum(10)
         self.max_pixels_slider.setValue(6)
-        self.max_pixels_slider.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.max_pixels_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.max_pixels_slider.setTickInterval(1)
 
         def on_max_pixels_slider_change(val):
@@ -428,47 +430,47 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.max_pixels_slider.valueChanged.connect(on_max_pixels_slider_change)
 
-        self.general_settings_layout.addWidget(QtGui.QLabel('Max Pixels (10^x):'), 0, 0)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Max Pixels (10^x):'), 0, 0)
         self.general_settings_layout.addWidget(self.max_pixels_slider, 0, 1)
 
         # Setup image realtime modding check box
-        self.mod_img_realtime_box = QtGui.QCheckBox()
+        self.mod_img_realtime_box = QtWidgets.QCheckBox()
         self.mod_img_realtime_box.setChecked(self.mod_img_realtime)
         self.mod_img_realtime_box.toggled.connect(self.on_mod_img_realtime_toggle)
-        self.general_settings_layout.addWidget(QtGui.QLabel('Realtime updates:'), 1, 0)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Realtime updates:'), 1, 0)
         self.general_settings_layout.addWidget(self.mod_img_realtime_box, 1, 1)
 
 
         # Setup color space combo box
-        self.color_space_cbox = QtGui.QComboBox()
+        self.color_space_cbox = QtWidgets.QComboBox()
         self.color_space_cbox.addItems(ALL_COLOR_SPACES)
         self.color_space_cbox.setCurrentIndex(self.cs_index)
         self.color_space_cbox.currentIndexChanged.connect(self.on_color_space_change)
 
-        self.general_settings_layout.addWidget(QtGui.QLabel('Color Space:'), 2, 0)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Color Space:'), 2, 0)
         self.general_settings_layout.addWidget(self.color_space_cbox, 2, 1)
 
         # Setup channel combo box
-        self.channel_cbox = QtGui.QComboBox()
+        self.channel_cbox = QtWidgets.QComboBox()
         self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
         self.channel_cbox.setCurrentIndex(self.ch_index)
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
-        self.general_settings_layout.addWidget(QtGui.QLabel('Channel:'), 3, 0)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Channel:'), 3, 0)
         self.general_settings_layout.addWidget(self.channel_cbox, 3, 1)
 
         # Setup cropping checkbox
-        self.apply_crop_box = QtGui.QCheckBox()
+        self.apply_crop_box = QtWidgets.QCheckBox()
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
-        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Cropping:'), 4, 0)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Apply Cropping:'), 4, 0)
         self.general_settings_layout.addWidget(self.apply_crop_box, 4, 1)
 
         # Setup thresholding checkboxes
-        self.apply_thresh_box = QtGui.QCheckBox()
+        self.apply_thresh_box = QtWidgets.QCheckBox()
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
-        self.general_settings_layout.addWidget(QtGui.QLabel('Apply Thresholding:'), 5, 0)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Apply Thresholding:'), 5, 0)
         self.general_settings_layout.addWidget(self.apply_thresh_box, 5, 1)
 
         # Setup thresholding sliders for all channels
@@ -478,7 +480,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         for i in range(3):
             # Setup thresholding channel label
-            channel_label = QtGui.QLabel(f'Threshold ({COLOR_SPACE_LABELS[self.color_mode][i]}):')
+            channel_label = QtWidgets.QLabel(f'Threshold ({COLOR_SPACE_LABELS[self.color_mode][i]}):')
             self.general_settings_layout.addWidget(channel_label, thresh_row_offset + i, 0)
             self.all_channel_labels += [channel_label]
 
@@ -490,31 +492,38 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.general_settings_layout.addWidget(channel_thresh_slider, thresh_row_offset + i, 1)
             self.all_channel_thresh_sliders += [channel_thresh_slider]
 
+
+        # HACK: Add dummy label widget to squish all widgets to the top
+        self.general_settings_layout.addWidget(QtWidgets.QLabel(''), 10, 0, 999, 2)
+
+        # Place all general settings widgets in 'Settings' tab
+        settings_tab.setLayout(self.general_settings_layout)
+
+
+        # Lay everything out for data tab
+        self.data_layout = QtWidgets.QGridLayout()
+
         # Setup the data tree widget
         # NOTE: Top level keys will be rendered in reverse insertion order
         initial_data = {
-            'Image Controls': {
-                'Crop Dimensions': np.array(self.roi_bounds),
-                'Channel Thresholds': np.array(self.channel_thresholds).T
-            },
-            'Mouse Info': {
-                'Mouse Location': np.array([-1, -1]),
-                'Color at Mouse': np.array([-1, -1, -1]),
-            },
-            'Image Info': {
-                'Total Pixels': image_num_pixels(self.input_img),
-                'Pixels Loaded': image_num_pixels(self.curr_image),
-                'Resize Factor': img_resize_factor(self.input_img, self.max_pixels_to_load),
-                'Original Image Size': np.array(self.input_img.shape[:2][::-1]),
-                'Loaded Image Size': np.array(self.curr_image.shape[:2][::-1]),
-            },
+            'Image Controls/Crop Dimensions': np.array(self.roi_bounds),
+            'Image Controls/Crop Dimensions': np.array(self.roi_bounds),
+            'Image Controls/Channel Thresholds': np.array(self.channel_thresholds).T,
+
+            'Mouse Info/Mouse Location': np.array([-1, -1]),
+            'Mouse Info/Color at Mouse': np.array([-1, -1, -1]),
+
+            'Image Info/Total Pixels': image_num_pixels(self.input_img),
+            'Image Info/Pixels Loaded': image_num_pixels(self.curr_image),
+            'Image Info/Resize Factor': img_resize_factor(self.input_img, self.max_pixels_to_load),
+            'Image Info/Original Image Size': np.array(self.input_img.shape[:2][::-1]),
+            'Image Info/Loaded Image Size': np.array(self.curr_image.shape[:2][::-1]),
         }
 
         self.data_tree = GlobalDataTreeWidget()
         self.data_tree.set_data(initial_data)
 
-        self.general_settings_layout.addWidget(self.data_tree, 9, 0, 1, 2)
-
+        self.data_layout.addWidget(self.data_tree, 0, 0, 1, 1)
 
         def handle_on_mouse_hover(x, y, color):
             self.data_tree['Mouse Info/Mouse Location'] = np.array([x, y])
@@ -523,56 +532,52 @@ class MyWindow(pg.GraphicsLayoutWidget):
         show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, self.curr_image, handle_on_mouse_hover)
         self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
 
-
-        # HACK: Add dummy label widget to squish all widgets to the top
-        self.general_settings_layout.addWidget(QtGui.QLabel(''), 10, 0, 999, 2)
-
-        # Place all general settings widgets in 'Settings' tab
-        general_data_settings_tab.setLayout(self.general_settings_layout)
+        # Place all data widgets in 'Data' tab
+        data_tab.setLayout(self.data_layout)
 
 
         # Lay everything out for clustering settings tab
-        self.clustering_settings_layout = QtGui.QGridLayout()
+        self.clustering_settings_layout = QtWidgets.QGridLayout()
 
         # Setup clustering algorithm combo box
-        self.cluster_algo_cbox = QtGui.QComboBox()
+        self.cluster_algo_cbox = QtWidgets.QComboBox()
         self.cluster_algo_cbox.addItems(ALL_CLUSTER_ALGORITHMS)
         self.cluster_algo_cbox.setCurrentIndex(self.cluster_algo_index)
         self.cluster_algo_cbox.currentIndexChanged.connect(self.on_cluster_algo_change)
 
-        self.clustering_settings_layout.addWidget(QtGui.QLabel('Cluster Algorithm:'), 0, 0)
+        self.clustering_settings_layout.addWidget(QtWidgets.QLabel('Cluster Algorithm:'), 0, 0)
         self.clustering_settings_layout.addWidget(self.cluster_algo_cbox, 0, 1)
 
         # Setup clustering algorithm input data combo box
-        self.cluster_input_cbox = QtGui.QComboBox()
+        self.cluster_input_cbox = QtWidgets.QComboBox()
         self.cluster_input_cbox.addItems(CLUSTER_INPUT_TYPES)
         self.cluster_input_cbox.setCurrentIndex(self.cluster_input_index)
         self.cluster_input_cbox.currentIndexChanged.connect(self.on_cluster_input_change)
 
-        self.clustering_settings_layout.addWidget(QtGui.QLabel('Cluster Input Type:'), 1, 0)
+        self.clustering_settings_layout.addWidget(QtWidgets.QLabel('Cluster Input Type:'), 1, 0)
         self.clustering_settings_layout.addWidget(self.cluster_input_cbox, 1, 1)
 
         # Setup the cluster sub-settings widgets
         self.clusterer_controller = IMG_CLUSTERERS[self.cluster_algo_index]
         cluster_sub_settings_layout = self.clusterer_controller.setup_settings_layout()
 
-        self.cluster_settings_widget = QtGui.QWidget()
+        self.cluster_settings_widget = QtWidgets.QWidget()
         self.cluster_settings_widget.setLayout(cluster_sub_settings_layout)
         self.clustering_settings_layout.addWidget(self.cluster_settings_widget, 2, 0, 1, 2)
 
         # Setup clustering buttons
-        self.run_clustering_button = QtGui.QPushButton('Run Clustering')
+        self.run_clustering_button = QtWidgets.QPushButton('Run Clustering')
         self.run_clustering_button.clicked.connect(self.on_run_clustering)
         self.run_clustering_button.setEnabled(True)
         self.clustering_settings_layout.addWidget(self.run_clustering_button, 3, 0)
 
-        self.cancel_clustering_button = QtGui.QPushButton('Cancel Clustering')
+        self.cancel_clustering_button = QtWidgets.QPushButton('Cancel Clustering')
         self.cancel_clustering_button.clicked.connect(self.on_cancel_clustering)
         self.cancel_clustering_button.setEnabled(False)
         self.clustering_settings_layout.addWidget(self.cancel_clustering_button, 3, 1)
 
         # HACK: Add dummy label widget to squish all widgets to the top
-        self.clustering_settings_layout.addWidget(QtGui.QLabel(''), 4, 0, 999, 2)
+        self.clustering_settings_layout.addWidget(QtWidgets.QLabel(''), 4, 0, 999, 2)
 
         # Place all cluster settings widgets in 'Clustering' tab
         cluster_settings_tab.setLayout(self.clustering_settings_layout)
@@ -620,6 +625,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.channel_cbox.currentIndexChanged.disconnect()
             self.channel_cbox.clear()
             self.channel_cbox.addItems(COLOR_SPACE_LABELS[self.color_mode])
+            self.channel_cbox.setCurrentIndex(self.ch_index)
             self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
             for i in range(3):
@@ -653,7 +659,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         cluster_settings_layout = self.clusterer_controller.setup_settings_layout()
 
         old_widget = self.cluster_settings_widget
-        self.cluster_settings_widget = QtGui.QWidget()
+        self.cluster_settings_widget = QtWidgets.QWidget()
         self.cluster_settings_widget.setLayout(cluster_settings_layout)
 
         self.clustering_settings_layout.replaceWidget(old_widget, self.cluster_settings_widget)
@@ -747,7 +753,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.glvw_color_vis.remove_cluster_plot()
 
 
-            @concurrent.process
+            @concurrent.thread
             def _run_clustering(cv_img, color_mode, input_mode, roi_bounds):
                 outcome = {
                     'results': None,
@@ -784,7 +790,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
                             error_msg = f'A problem occurred when running the clustering algorithm:'
                             error_msg += f"\n{outcome['exception']['name']}"
                             error_msg += f"\n{outcome['exception']['stacktrace']}"
-                            QtGui.QMessageBox.warning(self, 'Error!', error_msg)
+                            QtWidgets.QMessageBox.warning(self, 'Error!', error_msg)
                         else:
                             color_centers, rgb_colored_centers = outcome['results']
                             self.glvw_color_vis.set_cluster_plot(cluster_points_plot(color_centers, rgb_colored_centers))
@@ -955,7 +961,7 @@ if __name__ == '__main__':
         with open('src/app.css') as fp:
             app.setStyleSheet('\n'.join(fp.readlines()).strip())
 
-        MainWindow = QtGui.QMainWindow()
+        MainWindow = QtWidgets.QMainWindow()
         gui = MyWindow()
         gui.load_image_file(DEFAULT_IMG_FILENAME, DEFAULT_MAX_PIXELS)
         gui.setup_gui()
