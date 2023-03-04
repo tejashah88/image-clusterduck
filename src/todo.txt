@@ -1,0 +1,7 @@
+- fix GUI color for light theme users
+- display clustered centers in GUI
+- implement different cluster input modes
+- implement all scikit-learn clustering algorithms
+- add help GUI components
+- add documentation
+- experiment with single channel clustering

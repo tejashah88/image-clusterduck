@@ -35,6 +35,22 @@ def get_rgb_from(pixels, color_mode):
     return converted_pixels
 
 
+'''
+PAIRWISE_DISTANCE_FUNCTIONS = {
+    # If updating this dictionary, update the doc in both distance_metrics()
+    # and also in pairwise_distances()!
+    'cityblock': manhattan_distances,
+    'cosine': cosine_distances,
+    'euclidean': euclidean_distances,
+    'haversine': haversine_distances,
+    'l2': euclidean_distances,
+    'l1': manhattan_distances,
+    'manhattan': manhattan_distances,
+    'precomputed': None,  # HACK: precomputed is always allowed, never called
+    'nan_euclidean': nan_euclidean_distances,
+}
+'''
+
 class BaseImageClusterer:
     def __init__(self, clusterer_algo, _param_config):
         self.layout = None
@@ -192,6 +208,40 @@ class MeanShiftImageClusterer(BaseImageClusterer):
 
 
     def run_clustering(self, cv_img, color_mode, input_mode, crop_bounds=None):
+        cluster_results = super().run_clustering(cv_img, color_mode, input_mode, crop_bounds)
+
+        color_centers = cluster_results.cluster_centers_
+        color_labels = cluster_results.labels_
+        rgb_color_centers = get_rgb_from(color_centers, color_mode)
+        num_iterations = cluster_results.n_iter_
+
+        return (color_centers, color_labels, rgb_color_centers, -1, num_iterations)
+
+
+class SpectralClusteringImageClusterer(BaseImageClusterer):
+    # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.SpectralClustering.html
+    _param_config = [
+        {'name': 'Number of clusters'       , 'type': 'int'  , 'value': 8       , 'limits': (1, INT_MAX)                     , 'iname': 'n_clusters'   },
+        {'name': 'Eigenvalue Solver'        , 'type': 'list' , 'value': None    , 'values': [None, 'arpack', 'lobpcg', 'amg'], 'iname': 'eigen_solver' },
+        {'name': 'Number of Components'     , 'type': 'int'  , 'value': 8       , 'limits': (1, INT_MAX)                     , 'iname': 'n_components' },
+        # FIXME: Default value depends on number of clusters
+        {'name': 'Number of runs'           , 'type': 'int'  , 'value': 10      , 'limits': (1, INT_MAX)                     , 'iname': 'n_init'       },
+        {'name': 'Gamma'                    , 'type': 'float', 'value': 1.0     , 'limits': (0.0, INT_MAX)                   , 'iname': 'gamma'         , 'dec': True},
+        {'name': 'Affinity Matrix Type'     , 'type': 'list' , 'value': 'rbf'   , 'values': ['nearest_neighbors', 'rbf']     , 'iname': 'affinity'     },
+        {'name': 'Number of neighbors'      , 'type': 'int'  , 'value': 10      , 'limits': (1, INT_MAX)                     , 'iname': 'n_neighbors'  },
+        {'name': 'Eigen solver tolerance'   , 'type': 'float', 'value': 0.0     , 'limits': (0.0, INT_MAX)                   , 'iname': 'eigen_tol'     ,'dec': True},
+        {'name': 'Label assignment strategy', 'type': 'list' , 'value': 'kmeans', 'values': ['kmeans', 'discretize']         , 'iname': 'assign_labels'},
+        {'name': 'Degree of polynomial'     , 'type': 'float', 'value': 3       , 'limits': (0.0, INT_MAX)                   , 'iname': 'degree'       },
+        {'name': 'Zero Coefficient'         , 'type': 'float', 'value': 1       , 'limits': (0.0, INT_MAX)                   , 'iname': 'coef0'        },
+        {'name': 'Number of jobs'           , 'type': 'int'  , 'value': 1       , 'limits': (1, NUM_CPUS)                    , 'iname': 'n_jobs'       },
+    ]
+
+    def __init__(self):
+        super().__init__(sklearn.cluster.SpectralClustering, self._param_config)
+
+
+    def run_clustering(self, cv_img, color_mode, input_mode, crop_bounds=None):
+        # FIXME: NOT WORKING FOR NOW
         cluster_results = super().run_clustering(cv_img, color_mode, input_mode, crop_bounds)
 
         color_centers = cluster_results.cluster_centers_
