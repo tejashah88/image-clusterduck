@@ -111,11 +111,11 @@ class KMeansImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
     _param_config = [
         {'name': 'Number of clusters', 'type': 'int' , 'value': 8       , 'limits': (1, INT_MAX)             , 'iname': 'n_clusters'},
-        {'name': 'Initial centers'   , 'type': 'list', 'value': 'random', 'values': ['random', 'k-means++']  , 'iname': 'init'      },
+        {'name': 'Initial centers'   , 'type': 'list', 'value': 'random', 'limits': ['random', 'k-means++']  , 'iname': 'init'      },
         {'name': 'Number of runs'    , 'type': 'int' , 'value': 10      , 'limits': (1, INT_MAX)             , 'iname': 'n_init'    },
         {'name': 'Max iterations'    , 'type': 'int' , 'value': 300     , 'limits': (1, INT_MAX)             , 'iname': 'max_iter'  },
         {'name': 'Tolerance'         , 'type': 'int' , 'value': 1e-4    , 'limits': (1e-10, 1e+10)           , 'iname': 'tol'       , 'dec': True},
-        {'name': 'Algorithm type'    , 'type': 'list', 'value': 'lloyd'  , 'values': ['lloyd', 'elkan']      , 'iname': 'algorithm' },
+        {'name': 'Algorithm type'    , 'type': 'list', 'value': 'lloyd' , 'limits': ['lloyd', 'elkan']      , 'iname': 'algorithm' },
         {'name': 'Verbose Logging'   , 'type': 'bool', 'value': False                                        , 'iname': 'verbose'   },
     ]
 
@@ -139,7 +139,7 @@ class MiniBatchKMeansImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html
     _param_config = [
         {'name': 'Number of clusters'   , 'type': 'int'  , 'value': 8       , 'limits': (1, INT_MAX)           , 'iname': 'n_clusters'        },
-        {'name': 'Initial centers'      , 'type': 'list' , 'value': 'random', 'values': ['random', 'k-means++'], 'iname': 'init'              },
+        {'name': 'Initial centers'      , 'type': 'list' , 'value': 'random', 'limits': ['random', 'k-means++'], 'iname': 'init'              },
         {'name': 'Number of runs'       , 'type': 'int'  , 'value': 3       , 'limits': (1, INT_MAX)           , 'iname': 'n_init'            },
         {'name': 'Max iterations'       , 'type': 'int'  , 'value': 300     , 'limits': (1, INT_MAX)           , 'iname': 'max_iter'          },
         {'name': 'Tolerance'            , 'type': 'float', 'value': 1e-4    , 'limits': (1e-10, 1e+10)         , 'iname': 'tol'               , 'dec': True},
@@ -221,15 +221,15 @@ class SpectralClusteringImageClusterer(BaseImageClusterer):
     # Docs: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.SpectralClustering.html
     _param_config = [
         {'name': 'Number of clusters'       , 'type': 'int'  , 'value': 8       , 'limits': (1, INT_MAX)                     , 'iname': 'n_clusters'   },
-        {'name': 'Eigenvalue Solver'        , 'type': 'list' , 'value': None    , 'values': [None, 'arpack', 'lobpcg', 'amg'], 'iname': 'eigen_solver' },
+        {'name': 'Eigenvalue Solver'        , 'type': 'list' , 'value': None    , 'limits': [None, 'arpack', 'lobpcg', 'amg'], 'iname': 'eigen_solver' },
         {'name': 'Number of Components'     , 'type': 'int'  , 'value': 8       , 'limits': (1, INT_MAX)                     , 'iname': 'n_components' },
         # FIXME: Default value depends on number of clusters
         {'name': 'Number of runs'           , 'type': 'int'  , 'value': 10      , 'limits': (1, INT_MAX)                     , 'iname': 'n_init'       },
         {'name': 'Gamma'                    , 'type': 'float', 'value': 1.0     , 'limits': (0.0, INT_MAX)                   , 'iname': 'gamma'         , 'dec': True},
-        {'name': 'Affinity Matrix Type'     , 'type': 'list' , 'value': 'rbf'   , 'values': ['nearest_neighbors', 'rbf']     , 'iname': 'affinity'     },
+        {'name': 'Affinity Matrix Type'     , 'type': 'list' , 'value': 'rbf'   , 'limits': ['nearest_neighbors', 'rbf']     , 'iname': 'affinity'     },
         {'name': 'Number of neighbors'      , 'type': 'int'  , 'value': 10      , 'limits': (1, INT_MAX)                     , 'iname': 'n_neighbors'  },
         {'name': 'Eigen solver tolerance'   , 'type': 'float', 'value': 0.0     , 'limits': (0.0, INT_MAX)                   , 'iname': 'eigen_tol'     ,'dec': True},
-        {'name': 'Label assignment strategy', 'type': 'list' , 'value': 'kmeans', 'values': ['kmeans', 'discretize']         , 'iname': 'assign_labels'},
+        {'name': 'Label assignment strategy', 'type': 'list' , 'value': 'kmeans', 'limits': ['kmeans', 'discretize']         , 'iname': 'assign_labels'},
         {'name': 'Degree of polynomial'     , 'type': 'float', 'value': 3       , 'limits': (0.0, INT_MAX)                   , 'iname': 'degree'       },
         {'name': 'Zero Coefficient'         , 'type': 'float', 'value': 1       , 'limits': (0.0, INT_MAX)                   , 'iname': 'coef0'        },
         {'name': 'Number of jobs'           , 'type': 'int'  , 'value': 1       , 'limits': (1, NUM_CPUS)                    , 'iname': 'n_jobs'       },
