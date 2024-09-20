@@ -87,7 +87,7 @@ class BaseImageClusterer:
             self.params[param_name] = param_curr_val if param_curr_val is not None else param_default_val
 
 
-    def run_clustering(self, cv_img, color_mode, input_mode, crop_bounds=None):
+    def run_clustering(self, cv_img, color_mode, input_mode, crop_bounds=None, thresh_bounds=None):
         cluster_params = {}
 
         for param_row in self.param_config:
@@ -97,12 +97,26 @@ class BaseImageClusterer:
         self.clusterer.set_params(**cluster_params)
 
         initial_img = cv_img[color_mode]
+
         if crop_bounds is not None:
             x_min, y_min, x_max, y_max = crop_bounds
-            initial_img = initial_img[y_min:y_max, x_min:x_max]
+        else:
+            height, width = initial_img.shape[:2]
+            x_min, y_min, x_max, y_max = (0, 0, width, height)
+
+        initial_img = initial_img[y_min:y_max, x_min:x_max]
+
+        if thresh_bounds is None:
+            thresh_bounds = [(0, 255), (0, 255), (0, 255)]
+
+        for (ch_index, bounds) in enumerate(thresh_bounds):
+            lower_ch, upper_ch = bounds
+            channel_arr = initial_img[:, :, ch_index]
+
+            thresh_indicies = ( (channel_arr < lower_ch) | (channel_arr > upper_ch) )
+            initial_img[thresh_indicies] = 0
 
         color_coords = initial_img.reshape(-1, 3)
-        rgb_image = cv_img.RGB.reshape(-1, 3)
         cluster_results = self.clusterer.fit(color_coords)
         return cluster_results
 

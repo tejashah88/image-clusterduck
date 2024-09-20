@@ -46,8 +46,8 @@ IMG_CLUSTERERS = list(CLUSTER_ALGORITHMS.values())
 
 CLUSTER_INPUTS = {
     'color'  : 'Color-only',
-    'spatial': 'Spatial-only',
-    'both'   : 'Color & Spatial',
+    'spatial': 'Spatial-only (WIP)',
+    'both'   : 'Color & Spatial (WIP)',
 }
 
 INTERNAL_CLUSTER_INPUTS = list(CLUSTER_INPUTS.keys())
