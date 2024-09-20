@@ -8,6 +8,7 @@ import cv2
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
+import qdarktheme
 
 import sklearn.cluster
 from pebble import concurrent
@@ -98,7 +99,7 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, sc
         channel_arr = converted_img[:, :, ch_index]
 
         thresh_indicies = ( (channel_arr < lower_ch) | (channel_arr > upper_ch) )
-        converted_img[thresh_indicies] = -1
+        converted_img[thresh_indicies] = 0
 
     pos_arr = converted_img.reshape(-1, 3)
     color_arr = rgb_img.reshape(-1, 3) / 255
@@ -185,7 +186,7 @@ def load_image_max_pixels(input_img, max_pixels):
 
 # Returns the number of pixels in a 2D or 3D image
 def image_num_pixels(img):
-    return int(np.product(img.shape[:2]))
+    return int(np.prod(img.shape[:2]))
 
 # Return required resize factor to shrink image to contain given max number of pixels
 def img_resize_factor(input_img, max_pixels):
@@ -954,12 +955,10 @@ if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         app = pg.mkQApp()
+        qdarktheme.setup_theme()
 
         screen_resolution = app.desktop().screenGeometry()
         SCREEN_WIDTH, SCREEN_HEIGHT = screen_resolution.width(), screen_resolution.height()
-
-        with open('src/app.css') as fp:
-            app.setStyleSheet('\n'.join(fp.readlines()).strip())
 
         MainWindow = QtWidgets.QMainWindow()
         gui = MyWindow()

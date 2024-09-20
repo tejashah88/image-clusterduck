@@ -5,5 +5,6 @@ opencv-python-headless
 PyQt5
 pyopengl
 pyqtgraph
+pyqtdarktheme
 Pebble
 mss
