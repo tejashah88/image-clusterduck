@@ -11,6 +11,8 @@ class GlobalDataTreeWidget(pg.DataTreeWidget):
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
+        self.setHeaderLabels(['Name', 'type', 'Value'])
+        self.setColumnHidden(1, True)
 
 
     def __getitem__(self, key):
@@ -82,5 +84,4 @@ class GlobalDataTreeWidget(pg.DataTreeWidget):
 
     def shrink_columns_to_contents(self):
         self.resizeColumnToContents(0)
-        self.resizeColumnToContents(1)
         self.resizeColumnToContents(2)

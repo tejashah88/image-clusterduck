@@ -1,4 +1,5 @@
 import os
+import signal
 import traceback
 from concurrent.futures import CancelledError
 
@@ -35,7 +36,6 @@ DIALOG_SUPPORTED_IMG_EXTS += 'All Files (*)'
 HOME_DIR = os.path.expanduser('~')
 HOME_DIR = os.path.curdir # FIXME
 
-DEFAULT_MAX_PIXELS = 10 ** 6
 
 # NOTE: These constants will be initialized later
 SCREEN_WIDTH = -1
@@ -168,29 +168,9 @@ def setup_axes_links(leader_plot, follower_plots):
         plot.setYLink(leader_plot)
 
 
-# Load image with approximate max number of pixels
-def load_image_max_pixels(input_img, max_pixels):
-    num_pixels = image_num_pixels(input_img)
-    if num_pixels > max_pixels:
-        resize_factor = img_resize_factor(input_img, max_pixels)
-        resized_img = cv2.resize(input_img, None, fx=resize_factor, fy=resize_factor)
-    else:
-        resize_factor = 1
-        resized_img = input_img[:, :, :]
-
-    return resized_img
-
-
 # Returns the number of pixels in a 2D or 3D image
 def image_num_pixels(img):
     return int(np.prod(img.shape[:2]))
-
-# Return required resize factor to shrink image to contain given max number of pixels
-def img_resize_factor(input_img, max_pixels):
-    resize_factor = 1 / ( (image_num_pixels(input_img) / max_pixels) ** 0.5 )
-    if resize_factor < 1:
-        return resize_factor
-    return 1
 
 
 # Interpret image data as row-major instead of col-major
@@ -226,7 +206,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.apply_crop = False
         self.apply_thresh = False
 
-        self.max_pixels_to_load = DEFAULT_MAX_PIXELS
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
 
         self.cluster_future = None
@@ -337,7 +316,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         return max(1, int((pixels / REALTIME_BUDGET) ** 0.5))
 
 
-    def load_image_file(self, img_path, max_pixels):
+    def load_image_file(self, img_path):
         input_img = cv2.imread(img_path)
         if input_img is None:
             QtWidgets.QMessageBox.warning(self, 'Error!', f'Unable to load image from "{img_path}"')
@@ -347,25 +326,18 @@ class MyWindow(pg.GraphicsLayoutWidget):
             else:
                 exit(-1)
 
-        self.load_image(input_img, max_pixels)
+        self.load_image(input_img)
         self.set_window_title(f'Now viewing "{img_path.split("/")[-1]}"')
 
 
-    def load_image(self, input_img, max_pixels):
-        if max_pixels is None:
-            max_pixels = self.max_pixels_to_load
-
+    def load_image(self, input_img):
         with GuiBusyLock(self):
             self.input_img = input_img
-            resized_img = load_image_max_pixels(self.input_img, max_pixels)
-            self.cv_img = CvImg.from_ndarray(resized_img)
+            self.cv_img = CvImg.from_ndarray(input_img[:, :, :])
 
             if self.gui_ready:
                 self.data_tree['Image Info/Total Pixels'] = image_num_pixels(self.input_img)
-                self.data_tree['Image Info/Pixels Loaded'] = image_num_pixels(self.curr_image)
-                self.data_tree['Image Info/Resize Factor'] = img_resize_factor(self.input_img, max_pixels)
-                self.data_tree['Image Info/Original Image Size'] = np.array(self.input_img.shape[:2][::-1])
-                self.data_tree['Image Info/Loaded Image Size'] = np.array(self.curr_image.shape[:2][::-1])
+                self.data_tree['Image Info/Image Size'] = np.array(self.input_img.shape[:2][::-1])
 
                 self.orig_img_plot.set_image(self.cv_img.RGB)
                 self.on_color_space_change(self.cs_index)
@@ -481,18 +453,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Setup the data tree widget
         # NOTE: Top level keys will be rendered in reverse insertion order
         initial_data = {
-            'Image Controls/Crop Dimensions': np.array(self.roi_bounds),
-            'Image Controls/Crop Dimensions': np.array(self.roi_bounds),
+            'Image Controls/Crop (x0,y0,x1,y1)': np.array(self.roi_bounds),
+            'Image Controls/Crop np (r0,r1,c0,c1)': np.array([self.roi_bounds[1], self.roi_bounds[3], self.roi_bounds[0], self.roi_bounds[2]]),
             'Image Controls/Channel Thresholds': np.array(self.channel_thresholds).T,
 
             'Mouse Info/Mouse Location': np.array([-1, -1]),
             'Mouse Info/Color at Mouse': np.array([-1, -1, -1]),
 
             'Image Info/Total Pixels': image_num_pixels(self.input_img),
-            'Image Info/Pixels Loaded': image_num_pixels(self.curr_image),
-            'Image Info/Resize Factor': img_resize_factor(self.input_img, self.max_pixels_to_load),
-            'Image Info/Original Image Size': np.array(self.input_img.shape[:2][::-1]),
-            'Image Info/Loaded Image Size': np.array(self.curr_image.shape[:2][::-1]),
+            'Image Info/Image Size': np.array(self.input_img.shape[:2][::-1]),
         }
 
         self.data_tree = GlobalDataTreeWidget()
@@ -680,7 +649,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_crop_modify_realtime(self):
         if self.apply_crop:
-            self.data_tree['Image Controls/Crop Dimensions'] = np.array(self.roi_bounds)
+            self.data_tree['Image Controls/Crop (x0,y0,x1,y1)'] = np.array(self.roi_bounds)
+            self.data_tree['Image Controls/Crop np (r0,r1,c0,c1)'] = np.array([self.roi_bounds[1], self.roi_bounds[3], self.roi_bounds[0], self.roi_bounds[2]])
             self.update_2d_plots()
             self.update_3d_plots(subsample=self._realtime_subsample())
 
@@ -713,7 +683,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.roi = None
             self.orig_img_plot.disable_roi_rect()
 
-        self.data_tree['Image Controls/Crop Dimensions'] = np.array(self.roi_bounds)
+        self.data_tree['Image Controls/Crop (x0,y0,x1,y1)'] = np.array(self.roi_bounds)
+        self.data_tree['Image Controls/Crop np (r0,r1,c0,c1)'] = np.array([self.roi_bounds[1], self.roi_bounds[3], self.roi_bounds[0], self.roi_bounds[2]])
         self.update_all_plots()
 
 
@@ -804,6 +775,13 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.cluster_check_timer.start(250)
 
 
+    def closeEvent(self, event):
+        if self.cluster_check_timer is not None:
+            self.cluster_check_timer.stop()
+        if self.cluster_future is not None:
+            self.cluster_future.cancel()
+        event.accept()
+
     def on_cancel_clustering(self):
         if self.is_clustering:
             self.cluster_future.cancel()
@@ -844,7 +822,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 self.dataset_mode = False
                 self.dataset_imgs = []
                 self.dataset_index = None
-                self.load_image_file(img_path, self.max_pixels_to_load)
+                self.load_image_file(img_path)
 
         open_image_action.triggered.connect(on_img_file_select)
         file_menu.addAction(open_image_action)
@@ -863,7 +841,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 self.dataset_mode = True
                 self.dataset_imgs = dataset_image_paths
                 self.dataset_index = 0
-                self.load_image_file(self.dataset_imgs[self.dataset_index], self.max_pixels_to_load)
+                self.load_image_file(self.dataset_imgs[self.dataset_index])
 
         open_dataset_action.triggered.connect(on_dataset_folder_select)
         file_menu.addAction(open_dataset_action)
@@ -918,14 +896,14 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.dataset_index -= 1
             if self.dataset_index < 0:
                 self.dataset_index += len(self.dataset_imgs)
-            self.load_image_file(self.dataset_imgs[self.dataset_index], self.max_pixels_to_load)
+            self.load_image_file(self.dataset_imgs[self.dataset_index])
 
 
     def load_next_image_in_dataset(self):
         if self.dataset_mode:
             self.dataset_index += 1
             self.dataset_index %= len(self.dataset_imgs)
-            self.load_image_file(self.dataset_imgs[self.dataset_index], self.max_pixels_to_load)
+            self.load_image_file(self.dataset_imgs[self.dataset_index])
 
 
     def setup_statusbar(self, main_window):
@@ -957,15 +935,14 @@ if __name__ == '__main__':
 
         MainWindow = QtWidgets.QMainWindow()
         gui = MyWindow()
-        gui.load_image_file(DEFAULT_IMG_FILENAME, DEFAULT_MAX_PIXELS)
+        gui.load_image_file(DEFAULT_IMG_FILENAME)
         gui.setup_gui()
         gui.bind_to_main_window(MainWindow)
         gui.set_window_title(f'Now viewing "{DEFAULT_IMG_FILENAME.split("/")[-1]}"')
         MainWindow.show()
 
-        # HACK: This dummy timer lets us properly Ctrl+C from the app
-        timer = QtCore.QTimer()
-        timer.timeout.connect(lambda: None)
-        timer.start(100)
-
+        signal.signal(signal.SIGINT, lambda *_: app.quit())
+        wakeup_timer = QtCore.QTimer()
+        wakeup_timer.start(50)
+        wakeup_timer.timeout.connect(lambda: None)
         sys.exit(app.exec_())
