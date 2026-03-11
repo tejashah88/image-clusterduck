@@ -71,8 +71,11 @@ def process_img_plot_mouse_event(img_plot, curr_img, fn):
 
 
 def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=IMG_SCPLOT_SCALE):
+    colors = rgb_colored_centers / 255
+    alpha = np.ones((len(colors), 1), dtype=np.float32)
+    colors = np.hstack([colors, alpha])
     return gl.GLScatterPlotItem(
-        pos=color_centers / 255 * scale_factor, color=rgb_colored_centers / 255,
+        pos=color_centers / 255 * scale_factor, color=colors,
         size=0.75, pxMode=not True,
         glOptions='opaque'
     )
@@ -105,10 +108,11 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, sc
     color_arr = rgb_img.reshape(-1, 3) / 255
 
     non_zero_pixels = np.all(pos_arr != -1, axis=1)
-    pos_arr = pos_arr[non_zero_pixels]
+    pos_arr = pos_arr[non_zero_pixels] / 255 * scale_factor
     color_arr = color_arr[non_zero_pixels]
 
-    pos_arr = converted_img.reshape(-1, 3) / 255 * scale_factor
+    alpha = np.ones((len(color_arr), 1), dtype=np.float32)
+    color_arr = np.hstack([color_arr, alpha])
 
     return gl.GLScatterPlotItem(
         pos=pos_arr, color=color_arr,
@@ -155,8 +159,11 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
 
     pos_arr = np.vstack( (flat_r_arr, flat_c_arr, flat_channel_arr) ).T
 
-    color_arr = rgb_img.reshape(-1, 3)  / 255
+    color_arr = rgb_img.reshape(-1, 3) / 255
     color_arr = color_arr[flat_keep_indices, :]
+
+    alpha = np.ones((len(color_arr), 1), dtype=np.float32)
+    color_arr = np.hstack([color_arr, alpha])
 
     return gl.GLScatterPlotItem(
         pos=pos_arr, color=color_arr,
@@ -955,7 +962,7 @@ if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         app = pg.mkQApp()
-        qdarktheme.setup_theme()
+        app.setStyleSheet(qdarktheme.load_stylesheet())
 
         screen_resolution = app.desktop().screenGeometry()
         SCREEN_WIDTH, SCREEN_HEIGHT = screen_resolution.width(), screen_resolution.height()

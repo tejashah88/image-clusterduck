@@ -1,44 +1,40 @@
-# Source: http://www.pyqtgraph.org/documentation/_modules/pyqtgraph/opengl/items/GLAxisItem.html
-
 import numpy as np
 
-from OpenGL.GL import *
 import pyqtgraph.opengl as gl
 
 class ColoredGLAxisItem(gl.GLAxisItem):
     ''' A sub-class of GLAxisItem with the ability to customize the axes colors. '''
 
     def __init__(self, x_color=(255, 0, 0), y_color=(0, 255, 0), z_color=(0, 0, 255), **kwargs):
-        super().__init__(**kwargs)
+        # Set colors before super().__init__() since it calls updateLines()
         self.x_color = x_color
         self.y_color = y_color
         self.z_color = z_color
+        super().__init__(**kwargs)
 
-    def paint(self):
-        self.setupGLState()
-
-        if self.antialias:
-            glEnable(GL_LINE_SMOOTH)
-            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
-
-        glLineWidth(5)
-
-        glBegin( GL_LINES )
+    def updateLines(self):
+        if self.lineplot is None:
+            return
 
         x, y, z = self.size()
 
-        _z_color = (np.array(self.z_color) / 255).tolist()
-        glColor4f(*_z_color, .6)  # z is blue by default
-        glVertex3f(0, 0, 0)
-        glVertex3f(0, 0, z)
+        _z = (np.array(self.z_color) / 255).tolist()
+        _y = (np.array(self.y_color) / 255).tolist()
+        _x = (np.array(self.x_color) / 255).tolist()
 
-        _y_color = (np.array(self.y_color) / 255).tolist()
-        glColor4f(*_y_color, .6)  # y is green by default
-        glVertex3f(0, 0, 0)
-        glVertex3f(0, y, 0)
+        pos = np.array([
+            [0, 0, 0,  0, 0, z],   # z axis
+            [0, 0, 0,  0, y, 0],   # y axis
+            [0, 0, 0,  x, 0, 0],   # x axis
+        ], dtype=np.float32).reshape((-1, 3))
 
-        _x_color = (np.array(self.x_color) / 255).tolist()
-        glColor4f(*_x_color, .6)  # x is red by default
-        glVertex3f(0, 0, 0)
-        glVertex3f(x, 0, 0)
-        glEnd()
+        color = np.array([
+            [*_z, 0.6],
+            [*_y, 0.6],
+            [*_x, 0.6],
+        ], dtype=np.float32)
+        # Repeat color for both vertices of each line segment
+        color = np.hstack((color, color)).reshape((-1, 4))
+
+        self.lineplot.setData(pos=pos, color=color)
+        self.update()

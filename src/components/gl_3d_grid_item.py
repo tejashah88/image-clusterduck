@@ -1,81 +1,67 @@
-# Source: http://www.pyqtgraph.org/documentation/_modules/pyqtgraph/opengl/items/GLGridItem.html
-
 import numpy as np
 
-from OpenGL.GL import *
 import pyqtgraph.opengl as gl
 from pyqtgraph.Qt import QtGui
 
 class GL3DGridItem(gl.GLGridItem):
     def __init__(self, position=None, **kwargs):
-        super().__init__(**kwargs)
-
-        self.setSize(x=20, y=20, z=0)
         if position is None:
-            position = QtGui.QVector3D(0, 0, 0)
-        self.setPosition(position=position)
+            self._position = [0.0, 0.0, 0.0]
+        else:
+            self._position = [position.x(), position.y(), position.z()]
+        super().__init__(**kwargs)
 
     def setPosition(self, x=None, y=None, z=None, position=None):
         """
-        Set the position of the axes (in its local coordinate system; this does not affect the transform)
-        Arguments can be x,y,z or size=QVector3D().
+        Set the position of the grid origin.
+        Arguments can be x,y,z or position=QVector3D().
         """
         if position is not None:
             x = position.x()
             y = position.y()
             z = position.z()
-        self.__position = [x,y,z]
-        self.update()
-
+        self._position = [x, y, z]
+        self.updateLines()
 
     def position(self):
-        return self.__position[:]
+        return self._position[:]
 
-    def paint(self):
-        self.setupGLState()
+    def updateLines(self):
+        if self.lineplot is None:
+            return
 
-        if self.antialias:
-            glEnable(GL_LINE_SMOOTH)
-            glEnable(GL_BLEND)
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
-
-        glBegin( GL_LINES )
-
-        ps_x, ps_y, ps_z = self.position()
+        ps_x, ps_y, ps_z = getattr(self, '_position', [0.0, 0.0, 0.0])
         sz_x, sz_y, sz_z = self.size()
         sp_x, sp_y, sp_z = self.spacing()
 
-        xvals = np.arange(ps_x, ps_x + sz_x + sp_x*0.001, sp_x)
-        yvals = np.arange(ps_y, ps_y + sz_y + sp_y*0.001, sp_y)
-        zvals = np.arange(ps_z, ps_z + sz_z + sp_z*0.001, sp_z)
+        xvals = np.arange(ps_x, ps_x + sz_x + sp_x * 0.001, sp_x)
+        yvals = np.arange(ps_y, ps_y + sz_y + sp_y * 0.001, sp_y)
+        zvals = np.arange(ps_z, ps_z + sz_z + sp_z * 0.001, sp_z)
 
-        glColor4f(1, 1, 1, .3)
+        lines = []
+
         for x in xvals:
-            # draw x-axis lines along y-axis
-            glVertex3f(x, yvals[0], 0)
-            glVertex3f(x, yvals[-1], 0)
-
-            # draw x-axis lines along z-axis
-            glVertex3f(x, 0, zvals[0])
-            glVertex3f(x, 0, zvals[-1])
+            # XY plane (z = ps_z)
+            lines.append([x, yvals[0], ps_z,  x, yvals[-1], ps_z])
+            # XZ plane (y = ps_y)
+            if len(zvals) > 1:
+                lines.append([x, ps_y, zvals[0],  x, ps_y, zvals[-1]])
 
         for y in yvals:
-            # draw y-axis lines along x-axis
-            glVertex3f(xvals[0], y, 0)
-            glVertex3f(xvals[-1], y, 0)
-
-            # draw y-axis lines along z-axis
-            glVertex3f(0, y, zvals[0])
-            glVertex3f(0, y, zvals[-1])
+            # XY plane (z = ps_z)
+            lines.append([xvals[0], y, ps_z,  xvals[-1], y, ps_z])
+            # YZ plane (x = ps_x)
+            if len(zvals) > 1:
+                lines.append([ps_x, y, zvals[0],  ps_x, y, zvals[-1]])
 
         for z in zvals:
-            # draw z-axis lines along x-axis
-            glVertex3f(xvals[0], 0, z)
-            glVertex3f(xvals[-1], 0, z)
+            # XZ plane (y = ps_y)
+            if len(xvals) > 1:
+                lines.append([xvals[0], ps_y, z,  xvals[-1], ps_y, z])
+            # YZ plane (x = ps_x)
+            if len(yvals) > 1:
+                lines.append([ps_x, yvals[0], z,  ps_x, yvals[-1], z])
 
-            # draw z-axis lines along y-axis
-            glVertex3f(0, yvals[0], z)
-            glVertex3f(0, yvals[-1], z)
-
-        glEnd()
+        pos = np.array(lines, dtype=np.float32).reshape((-1, 3))
+        self.lineplot.setData(pos=pos, color=self.color())
+        self.update()
