@@ -1,12 +1,16 @@
 import numpy as np
 # from fdict import fdict
 import pyqtgraph as pg
+from pyqtgraph.Qt import QtWidgets, QtCore
 
 class GlobalDataTreeWidget(pg.DataTreeWidget):
     ''' A modded DataTreeWidget that makes it slightly easier to manage many signal events updating the data tree. '''
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.global_data = {}
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
 
 
     def __getitem__(self, key):
@@ -38,10 +42,26 @@ class GlobalDataTreeWidget(pg.DataTreeWidget):
         self.update_data()
 
 
+    def _content_height(self):
+        row_h = self.sizeHintForRow(0)
+        if row_h <= 0:
+            row_h = 20
+        it = QtWidgets.QTreeWidgetItemIterator(self, QtWidgets.QTreeWidgetItemIterator.NotHidden)
+        count = 0
+        while it.value():
+            count += 1
+            it += 1
+        return self.header().height() + count * row_h
+
+    def sizeHint(self):
+        return QtCore.QSize(super().sizeHint().width(), self._content_height())
+
     def update_data(self):
         self._stringify_numpy_arrays(self.global_data)
         super().setData(self.global_data, hideRoot=True)
         self.shrink_columns_to_contents()
+        self.setMinimumHeight(self._content_height())
+        self.updateGeometry()
 
 
     def swap_key(self, old_key, new_key):
@@ -49,6 +69,16 @@ class GlobalDataTreeWidget(pg.DataTreeWidget):
         del self[old_key]
         self[new_key] = val
 
+
+    def contextMenuEvent(self, event):
+        item = self.itemAt(self.viewport().mapFromGlobal(event.globalPos()))
+        if item is None:
+            return
+        menu = QtWidgets.QMenu(self)
+        copy_action = menu.addAction('Copy')
+        if menu.exec_(event.globalPos()) == copy_action:
+            text = item.text(2) or item.text(0)
+            QtWidgets.QApplication.clipboard().setText(text)
 
     def shrink_columns_to_contents(self):
         self.resizeColumnToContents(0)

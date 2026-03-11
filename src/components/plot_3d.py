@@ -1,4 +1,4 @@
-from pyqtgraph.Qt import QtGui
+from pyqtgraph.Qt import QtGui, QtWidgets
 import pyqtgraph.opengl as gl
 from .colored_gl_axis_item import ColoredGLAxisItem
 from .gl_3d_grid_item import GL3DGridItem
@@ -19,7 +19,8 @@ class Plot3D(gl.GLViewWidget):
         self.cplt_item = None
 
         # Setup the title and plot size
-        self.setFixedSize(*size)
+        self.setMinimumSize(*size)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
         if enable_grid:
             self.enable_grid(grid_length)

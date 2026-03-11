@@ -1,4 +1,5 @@
 import pyqtgraph as pg
+from pyqtgraph.Qt import QtWidgets
 
 HANDLE_SIZE = 10
 ROI_PEN_WIDTH = 2
@@ -24,7 +25,8 @@ class ImagePlotter(pg.PlotWidget):
 
         # Setup the title and plot size
         self.setTitle(title)
-        self.setFixedSize(*size)
+        self.setMinimumSize(*size)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
         if img is not None:
             self.set_image(img)

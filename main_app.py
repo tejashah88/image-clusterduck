@@ -411,12 +411,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup settings/data tabs
         info_tabs = QtWidgets.QTabWidget()
-        settings_tab = QtWidgets.QWidget()
-        data_tab = QtWidgets.QWidget()
+        combined_tab = QtWidgets.QWidget()
         cluster_settings_tab = QtWidgets.QWidget()
 
-        info_tabs.addTab(settings_tab, 'Settings')
-        info_tabs.addTab(data_tab, 'Data')
+        info_tabs.addTab(combined_tab, 'Settings/Data')
         info_tabs.addTab(cluster_settings_tab, 'Clustering')
 
 
@@ -504,8 +502,8 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # HACK: Add dummy label widget to squish all widgets to the top
         self.general_settings_layout.addWidget(QtWidgets.QLabel(''), 10, 0, 999, 2)
 
-        # Place all general settings widgets in 'Settings' tab
-        settings_tab.setLayout(self.general_settings_layout)
+        settings_content = QtWidgets.QWidget()
+        settings_content.setLayout(self.general_settings_layout)
 
 
         # Lay everything out for data tab
@@ -533,15 +531,39 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.data_layout.addWidget(self.data_tree, 0, 0, 1, 1)
 
-        def handle_on_mouse_hover(x, y, color):
-            self.data_tree['Mouse Info/Mouse Location'] = np.array([x, y])
-            self.data_tree['Mouse Info/Color at Mouse'] = color
+        def show_color_on_hover(mouse_pos):
+            if self.orig_img_plot.sceneBoundingRect().contains(mouse_pos):
+                mouse_point = self.orig_img_plot.getViewBox().mapSceneToView(mouse_pos)
+                x, y = int(mouse_point.x()), int(mouse_point.y())
+                img = self.curr_image  # dynamic: respects current color space
+                height, width = img.shape[:2]
+                if 0 <= y < height and 0 <= x < width:
+                    self.data_tree['Mouse Info/Mouse Location'] = np.array([x, y])
+                    self.data_tree['Mouse Info/Color at Mouse'] = img[y, x]
 
-        show_color_on_hover = process_img_plot_mouse_event(self.orig_img_plot, self.curr_image, handle_on_mouse_hover)
         self.orig_img_plot.scene().sigMouseMoved.connect(show_color_on_hover)
 
-        # Place all data widgets in 'Data' tab
-        data_tab.setLayout(self.data_layout)
+        data_content = QtWidgets.QWidget()
+        data_content.setLayout(self.data_layout)
+
+        # Build combined Settings/Data tab inside a scroll area
+        combined_inner = QtWidgets.QWidget()
+        combined_layout = QtWidgets.QVBoxLayout(combined_inner)
+        combined_layout.setContentsMargins(4, 4, 4, 4)
+        combined_layout.setSpacing(4)
+        combined_layout.addWidget(settings_content)
+        combined_layout.addWidget(data_content)
+        combined_layout.addStretch()
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidget(combined_inner)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+
+        combined_tab_layout = QtWidgets.QVBoxLayout()
+        combined_tab_layout.setContentsMargins(0, 0, 0, 0)
+        combined_tab_layout.addWidget(scroll)
+        combined_tab.setLayout(combined_tab_layout)
 
 
         # Lay everything out for clustering settings tab
@@ -592,6 +614,12 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Add the tabs into the main layout
         self.main_grid_layout.addWidget(info_tabs, 1, 2)
+
+        # Give image columns more horizontal space; settings panel doesn't stretch
+        self.main_grid_layout.setColumnStretch(0, 1)
+        self.main_grid_layout.setColumnStretch(1, 1)
+        self.main_grid_layout.setColumnStretch(2, 0)
+        info_tabs.setMaximumWidth(420)
 
         # Set the layout and resize the window accordingly
         self.setLayout(self.main_grid_layout)
@@ -647,7 +675,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.channel_plot.setTitle(title=self.channel_mode)
 
             self.update_all_plots()
-            self.channel_plot.autoRange()
             self.glvw_color_vis.remove_cluster_plot()
 
 
@@ -657,7 +684,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
             self.channel_plot.setTitle(title=self.channel_mode)
             self.update_all_plots()
-            self.channel_plot.autoRange()
 
 
     def on_cluster_algo_change(self, cluster_algo_index):
