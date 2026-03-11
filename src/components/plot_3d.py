@@ -33,11 +33,11 @@ class Plot3D(gl.GLViewWidget):
 
 
     def set_plot(self, plot):
-        if self.plt_item is not None:
-            self.plt_item.setData(pos=plot.pos, color=plot.color)
-        else:
-            self.plt_item = plot
-            self.addItem(self.plt_item)
+        self.plt_item = plot
+        self.addItem(self.plt_item)
+
+    def update_plot(self, pos_arr, color_arr):
+        self.plt_item.setData(pos=pos_arr, color=color_arr)
 
 
     def set_cluster_plot(self, cplot):

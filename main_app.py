@@ -58,6 +58,7 @@ IMG_SCPLOT_SCALE = 4
 CH_SCPLOT_SCALE = 5
 CH_SCPLOT_SCALE_Z = 2
 CH_PLOT_GRID_SZ = 8
+REALTIME_BUDGET = 100_000
 
 def process_img_plot_mouse_event(img_plot, curr_img, fn):
     def handle_mouse_event(mouse_pos):
@@ -81,7 +82,11 @@ def cluster_points_plot(color_centers, rgb_colored_centers, scale_factor=IMG_SCP
     )
 
 
-def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, scale_factor=IMG_SCPLOT_SCALE):
+def _make_scatter_item(pos_arr, color_arr, size=1, pxMode=True):
+    return gl.GLScatterPlotItem(pos=pos_arr, color=color_arr, size=size, pxMode=pxMode, glOptions='opaque')
+
+
+def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, scale_factor=IMG_SCPLOT_SCALE, subsample=1):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -94,36 +99,30 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, sc
     rgb_img = rgb_img[y_min:y_max, x_min:x_max]
     converted_img = converted_img[y_min:y_max, x_min:x_max]
 
+    if subsample > 1:
+        rgb_img = rgb_img[::subsample, ::subsample]
+        converted_img = converted_img[::subsample, ::subsample]
+
     if thresh_bounds is None:
-        thresh_bounds = [(0, 255), (0, 255), (0, 255)]
+        thresh_bounds = [(0, 255)] * 3
 
-    for (ch_index, bounds) in enumerate(thresh_bounds):
-        lower_ch, upper_ch = bounds
-        channel_arr = converted_img[:, :, ch_index]
+    keep_mask = np.ones(converted_img.shape[:2], dtype=bool)
+    for ch_index, (lower_ch, upper_ch) in enumerate(thresh_bounds):
+        ch = converted_img[:, :, ch_index]
+        keep_mask &= (ch >= lower_ch) & (ch <= upper_ch)
+    flat_keep = keep_mask.ravel()
 
-        thresh_indicies = ( (channel_arr < lower_ch) | (channel_arr > upper_ch) )
-        converted_img[thresh_indicies] = 0
-
-    pos_arr = converted_img.reshape(-1, 3)
-    color_arr = rgb_img.reshape(-1, 3) / 255
-
-    non_zero_pixels = np.all(pos_arr != -1, axis=1)
-    pos_arr = pos_arr[non_zero_pixels] / 255 * scale_factor
-    color_arr = color_arr[non_zero_pixels]
-
+    pos_arr = (converted_img.reshape(-1, 3)[flat_keep].astype(np.float32)) * (scale_factor / 255.0)
+    color_arr = (rgb_img.reshape(-1, 3)[flat_keep].astype(np.float32)) / 255.0
     alpha = np.ones((len(color_arr), 1), dtype=np.float32)
     color_arr = np.hstack([color_arr, alpha])
 
-    return gl.GLScatterPlotItem(
-        pos=pos_arr, color=color_arr,
-        size=1, pxMode=True,
-        glOptions='opaque'
-    )
+    return (pos_arr, color_arr)
 
 
-def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=CH_SCPLOT_SCALE, scale_z=CH_SCPLOT_SCALE_Z):
-    rgb_img = cv_img.RGB.copy()
-    converted_img = cv_img[color_mode].copy()
+def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=CH_SCPLOT_SCALE, scale_z=CH_SCPLOT_SCALE_Z, subsample=1):
+    rgb_img = cv_img.RGB
+    converted_img = cv_img[color_mode]
 
     if crop_bounds is not None:
         x_min, y_min, x_max, y_max = crop_bounds
@@ -134,42 +133,33 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
     rgb_img = rgb_img[y_min:y_max, x_min:x_max]
     converted_img = converted_img[y_min:y_max, x_min:x_max]
 
+    if subsample > 1:
+        rgb_img = rgb_img[::subsample, ::subsample]
+        converted_img = converted_img[::subsample, ::subsample]
+
     if thresh_bounds is not None:
         lower_ch, upper_ch = thresh_bounds[ch_index]
     else:
         lower_ch, upper_ch = (0, 255)
 
     rows, cols = converted_img.shape[:2]
-    c_arr, r_arr = np.meshgrid(np.arange(cols), np.arange(rows))
     channel_arr = converted_img[:, :, ch_index]
 
-    keep_indicies = ( (channel_arr > lower_ch) & (channel_arr < upper_ch) )
-    flat_keep_indices = keep_indicies.flatten()
+    keep_mask = (channel_arr >= lower_ch) & (channel_arr <= upper_ch)
+    flat_keep = keep_mask.ravel()
 
-    flat_r_arr = r_arr.flatten()[flat_keep_indices]
-    flat_c_arr = c_arr.flatten()[flat_keep_indices]
-    flat_channel_arr = channel_arr.flatten()[flat_keep_indices]
-
+    pixel_indices = np.where(flat_keep)[0]
     scaled_dim = scale_factor / max(rows, cols)
-    scaled_z = scale_z / 255
+    flat_r_arr = ((pixel_indices // cols) - rows // 2).astype(np.float32) * scaled_dim
+    flat_c_arr = ((pixel_indices  % cols) - cols // 2).astype(np.float32) * scaled_dim
+    flat_channel_arr = channel_arr.ravel()[flat_keep].astype(np.float32) * (scale_z / 255.0)
 
-    flat_r_arr = (flat_r_arr - rows // 2) * scaled_dim
-    flat_c_arr = (flat_c_arr - cols // 2) * scaled_dim
-    flat_channel_arr = flat_channel_arr * scaled_z
-
-    pos_arr = np.vstack( (flat_r_arr, flat_c_arr, flat_channel_arr) ).T
-
-    color_arr = rgb_img.reshape(-1, 3) / 255
-    color_arr = color_arr[flat_keep_indices, :]
-
+    pos_arr = np.column_stack([flat_r_arr, flat_c_arr, flat_channel_arr])
+    color_arr = (rgb_img.reshape(-1, 3)[flat_keep].astype(np.float32)) / 255.0
     alpha = np.ones((len(color_arr), 1), dtype=np.float32)
     color_arr = np.hstack([color_arr, alpha])
 
-    return gl.GLScatterPlotItem(
-        pos=pos_arr, color=color_arr,
-        size=1, pxMode=True,
-        glOptions='opaque'
-    )
+    return (pos_arr, color_arr)
 
 # Link the image plot axes together for consistent panning and zooming
 def setup_axes_links(leader_plot, follower_plots):
@@ -204,7 +194,8 @@ def img_resize_factor(input_img, max_pixels):
 
 
 # Interpret image data as row-major instead of col-major
-pg.setConfigOptions(imageAxisOrder='row-major')
+# NOTE: useOpenGL=True accelerates 2D plot rendering; revert to False if text/overlay artifacts appear
+pg.setConfigOptions(imageAxisOrder='row-major', useOpenGL=True)
 
 
 class MyWindow(pg.GraphicsLayoutWidget):
@@ -234,7 +225,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.apply_crop = False
         self.apply_thresh = False
-        self.mod_img_realtime = False
 
         self.max_pixels_to_load = DEFAULT_MAX_PIXELS
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
@@ -296,7 +286,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     @property
     def curr_image_slice(self):
-        img_slice = self.cv_img[self.color_mode][:, :, self.ch_index]
+        img_slice = self.cv_img[self.color_mode][:, :, self.ch_index].copy()
         if self.apply_thresh:
             lower_ch, upper_ch = self.thresh_bounds
             thresh_indicies = ( (img_slice < lower_ch) | (img_slice > upper_ch) )
@@ -323,22 +313,28 @@ class MyWindow(pg.GraphicsLayoutWidget):
         return None
 
 
-    @property
-    def curr_img_scatterplot(self):
+    def curr_img_scatterplot(self, subsample=1):
         return img_scatterplot(
             self.cv_img, self.color_mode,
             crop_bounds=self.roi_bounds,
-            thresh_bounds=self.channel_thresholds if self.apply_thresh else None
+            thresh_bounds=self.channel_thresholds if self.apply_thresh else None,
+            subsample=subsample
         )
 
 
-    @property
-    def curr_pos_color_scatterplot(self):
+    def curr_pos_color_scatterplot(self, subsample=1):
         return pos_color_scatterplot(
             self.cv_img, self.color_mode, self.ch_index,
             crop_bounds=self.roi_bounds,
-            thresh_bounds=self.channel_thresholds if self.apply_thresh else None
+            thresh_bounds=self.channel_thresholds if self.apply_thresh else None,
+            subsample=subsample
         )
+
+
+    def _realtime_subsample(self):
+        x_min, y_min, x_max, y_max = self.roi_bounds
+        pixels = (x_max - x_min) * (y_max - y_min)
+        return max(1, int((pixels / REALTIME_BUDGET) ** 0.5))
 
 
     def load_image_file(self, img_path, max_pixels):
@@ -387,10 +383,10 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         # Setup main plots
         self.orig_img_plot = ImagePlotter(title='Original Image', img=self.cv_img.RGB, enable_crosshair=True, size=optimal_plot_size)
-        self.glvw_color_vis = Plot3D(plot=self.curr_img_scatterplot, size=optimal_plot_size)
+        self.glvw_color_vis = Plot3D(plot=_make_scatter_item(*self.curr_img_scatterplot()), size=optimal_plot_size)
 
         self.channel_plot = ImagePlotter(title=self.channel_mode, img=self.curr_image_slice, size=optimal_plot_size)
-        self.glvw_channel_vis = Plot3D(plot=self.curr_pos_color_scatterplot, enable_axes=False, size=optimal_plot_size)
+        self.glvw_channel_vis = Plot3D(plot=_make_scatter_item(*self.curr_pos_color_scatterplot()), enable_axes=False, size=optimal_plot_size)
         self.glvw_channel_vis.grid_item.setPosition(x=-CH_PLOT_GRID_SZ / 2, y=-CH_PLOT_GRID_SZ / 2, z=0)
         self.glvw_channel_vis.grid_item.setSize(x=CH_PLOT_GRID_SZ, y=CH_PLOT_GRID_SZ, z=0)
 
@@ -421,40 +417,14 @@ class MyWindow(pg.GraphicsLayoutWidget):
         # Lay everything out for general settings/data tab
         self.general_settings_layout = QtWidgets.QGridLayout()
 
-        # Setup max pixels loading slider
-        self.max_pixels_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.max_pixels_slider.setMinimum(0)
-        self.max_pixels_slider.setMaximum(10)
-        self.max_pixels_slider.setValue(6)
-        self.max_pixels_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
-        self.max_pixels_slider.setTickInterval(1)
-
-        def on_max_pixels_slider_change(val):
-            self.max_pixels_to_load = 10 ** val
-            self.load_image(self.input_img, self.max_pixels_to_load)
-            self.data_tree['Image Info/Pixels Loaded'] = image_num_pixels(self.curr_image)
-
-        self.max_pixels_slider.valueChanged.connect(on_max_pixels_slider_change)
-
-        self.general_settings_layout.addWidget(QtWidgets.QLabel('Max Pixels (10^x):'), 0, 0)
-        self.general_settings_layout.addWidget(self.max_pixels_slider, 0, 1)
-
-        # Setup image realtime modding check box
-        self.mod_img_realtime_box = QtWidgets.QCheckBox()
-        self.mod_img_realtime_box.setChecked(self.mod_img_realtime)
-        self.mod_img_realtime_box.toggled.connect(self.on_mod_img_realtime_toggle)
-        self.general_settings_layout.addWidget(QtWidgets.QLabel('Realtime updates:'), 1, 0)
-        self.general_settings_layout.addWidget(self.mod_img_realtime_box, 1, 1)
-
-
         # Setup color space combo box
         self.color_space_cbox = QtWidgets.QComboBox()
         self.color_space_cbox.addItems(ALL_COLOR_SPACES)
         self.color_space_cbox.setCurrentIndex(self.cs_index)
         self.color_space_cbox.currentIndexChanged.connect(self.on_color_space_change)
 
-        self.general_settings_layout.addWidget(QtWidgets.QLabel('Color Space:'), 2, 0)
-        self.general_settings_layout.addWidget(self.color_space_cbox, 2, 1)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Color Space:'), 0, 0)
+        self.general_settings_layout.addWidget(self.color_space_cbox, 0, 1)
 
         # Setup channel combo box
         self.channel_cbox = QtWidgets.QComboBox()
@@ -462,25 +432,25 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.channel_cbox.setCurrentIndex(self.ch_index)
         self.channel_cbox.currentIndexChanged.connect(self.on_channel_view_change)
 
-        self.general_settings_layout.addWidget(QtWidgets.QLabel('Channel:'), 3, 0)
-        self.general_settings_layout.addWidget(self.channel_cbox, 3, 1)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Channel:'), 1, 0)
+        self.general_settings_layout.addWidget(self.channel_cbox, 1, 1)
 
         # Setup cropping checkbox
         self.apply_crop_box = QtWidgets.QCheckBox()
         self.apply_crop_box.setChecked(self.apply_crop)
         self.apply_crop_box.toggled.connect(self.on_apply_crop_toggle)
-        self.general_settings_layout.addWidget(QtWidgets.QLabel('Apply Cropping:'), 4, 0)
-        self.general_settings_layout.addWidget(self.apply_crop_box, 4, 1)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Apply Cropping:'), 2, 0)
+        self.general_settings_layout.addWidget(self.apply_crop_box, 2, 1)
 
         # Setup thresholding checkboxes
         self.apply_thresh_box = QtWidgets.QCheckBox()
         self.apply_thresh_box.setChecked(self.apply_thresh)
         self.apply_thresh_box.toggled.connect(self.on_apply_thresh_toggle)
-        self.general_settings_layout.addWidget(QtWidgets.QLabel('Apply Thresholding:'), 5, 0)
-        self.general_settings_layout.addWidget(self.apply_thresh_box, 5, 1)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Apply Thresholding:'), 3, 0)
+        self.general_settings_layout.addWidget(self.apply_thresh_box, 3, 1)
 
         # Setup thresholding sliders for all channels
-        thresh_row_offset = 6
+        thresh_row_offset = 4
         self.all_channel_thresh_sliders = []
         self.all_channel_labels = []
 
@@ -499,8 +469,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.all_channel_thresh_sliders += [channel_thresh_slider]
 
 
-        # HACK: Add dummy label widget to squish all widgets to the top
-        self.general_settings_layout.addWidget(QtWidgets.QLabel(''), 10, 0, 999, 2)
+        self.general_settings_layout.setRowStretch(10, 1)
 
         settings_content = QtWidgets.QWidget()
         settings_content.setLayout(self.general_settings_layout)
@@ -606,8 +575,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.cancel_clustering_button.setEnabled(False)
         self.clustering_settings_layout.addWidget(self.cancel_clustering_button, 3, 1)
 
-        # HACK: Add dummy label widget to squish all widgets to the top
-        self.clustering_settings_layout.addWidget(QtWidgets.QLabel(''), 4, 0, 999, 2)
+        self.clustering_settings_layout.setRowStretch(4, 1)
 
         # Place all cluster settings widgets in 'Clustering' tab
         cluster_settings_tab.setLayout(self.clustering_settings_layout)
@@ -714,9 +682,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
         if self.apply_crop:
             self.data_tree['Image Controls/Crop Dimensions'] = np.array(self.roi_bounds)
             self.update_2d_plots()
-
-            if self.mod_img_realtime:
-                self.update_3d_plots()
+            self.update_3d_plots(subsample=self._realtime_subsample())
 
 
     def on_thresh_change(self, thresh_ch_index, lower_val, upper_val):
@@ -730,9 +696,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.channel_thresholds[thresh_ch_index] = (lower_val, upper_val)
             self.data_tree['Image Controls/Channel Thresholds'] = np.array(self.channel_thresholds).T
             self.update_2d_plots()
-
-            if self.mod_img_realtime:
-                self.update_3d_plots()
+            self.update_3d_plots(subsample=self._realtime_subsample())
 
 
     def on_apply_crop_toggle(self, should_apply_crop):
@@ -753,8 +717,6 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.update_all_plots()
 
 
-    def on_mod_img_realtime_toggle(self, should_mod_img_realtime):
-        self.mod_img_realtime = should_mod_img_realtime
 
 
     def on_apply_thresh_toggle(self, should_apply_thresh):
@@ -856,9 +818,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.color_hist_plot.plot_hist(self.curr_image_cropped, self.curr_image_gray_cropped)
 
 
-    def update_3d_plots(self):
-        self.glvw_color_vis.set_plot(plot=self.curr_img_scatterplot)
-        self.glvw_channel_vis.set_plot(plot=self.curr_pos_color_scatterplot)
+    def update_3d_plots(self, subsample=1):
+        self.glvw_color_vis.update_plot(*self.curr_img_scatterplot(subsample))
+        self.glvw_channel_vis.update_plot(*self.curr_pos_color_scatterplot(subsample))
 
 
     def update_all_plots(self):

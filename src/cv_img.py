@@ -7,14 +7,16 @@ class CvImg:
 
     def __init__(self):
         self.image = None
+        self._cache = {}
 
 
     def __getitem__(self, sname):
         ''' Utility function to allow access to different color-converted images via dictionary-like access. '''
-        for space_name in IMPLEMENTED_COLOR_SPACES:
-            if sname == space_name:
-                return getattr(self, sname)
-        return None
+        if sname not in IMPLEMENTED_COLOR_SPACES:
+            return None
+        if sname not in self._cache:
+            self._cache[sname] = getattr(self, sname)
+        return self._cache[sname]
 
 
     @staticmethod
