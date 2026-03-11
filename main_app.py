@@ -120,7 +120,7 @@ def img_scatterplot(cv_img, color_mode, crop_bounds=None, thresh_bounds=None, sc
     return (pos_arr, color_arr)
 
 
-def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, scale_factor=CH_SCPLOT_SCALE, scale_z=CH_SCPLOT_SCALE_Z, subsample=1):
+def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh_bounds=None, combined_thresh=False, scale_factor=CH_SCPLOT_SCALE, scale_z=CH_SCPLOT_SCALE_Z, subsample=1):
     rgb_img = cv_img.RGB
     converted_img = cv_img[color_mode]
 
@@ -137,15 +137,18 @@ def pos_color_scatterplot(cv_img, color_mode, ch_index, crop_bounds=None, thresh
         rgb_img = rgb_img[::subsample, ::subsample]
         converted_img = converted_img[::subsample, ::subsample]
 
-    if thresh_bounds is not None:
-        lower_ch, upper_ch = thresh_bounds[ch_index]
-    else:
-        lower_ch, upper_ch = (0, 255)
-
     rows, cols = converted_img.shape[:2]
     channel_arr = converted_img[:, :, ch_index]
 
-    keep_mask = (channel_arr >= lower_ch) & (channel_arr <= upper_ch)
+    if thresh_bounds is not None and combined_thresh:
+        keep_mask = np.ones((rows, cols), dtype=bool)
+        for ch, (lo, hi) in enumerate(thresh_bounds):
+            keep_mask &= (converted_img[:, :, ch] >= lo) & (converted_img[:, :, ch] <= hi)
+    elif thresh_bounds is not None:
+        lower_ch, upper_ch = thresh_bounds[ch_index]
+        keep_mask = (channel_arr >= lower_ch) & (channel_arr <= upper_ch)
+    else:
+        keep_mask = np.ones((rows, cols), dtype=bool)
     flat_keep = keep_mask.ravel()
 
     pixel_indices = np.where(flat_keep)[0]
@@ -205,6 +208,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
         self.apply_crop = False
         self.apply_thresh = False
+        self.apply_combined_thresh = False
 
         self.channel_thresholds = [(0, 255), (0, 255), (0, 255)]
 
@@ -267,9 +271,15 @@ class MyWindow(pg.GraphicsLayoutWidget):
     def curr_image_slice(self):
         img_slice = self.cv_img[self.color_mode][:, :, self.ch_index].copy()
         if self.apply_thresh:
-            lower_ch, upper_ch = self.thresh_bounds
-            thresh_indicies = ( (img_slice < lower_ch) | (img_slice > upper_ch) )
-            img_slice[thresh_indicies] = 0
+            if self.apply_combined_thresh:
+                converted_img = self.cv_img[self.color_mode]
+                mask = np.ones(converted_img.shape[:2], dtype=bool)
+                for ch, (lo, hi) in enumerate(self.channel_thresholds):
+                    mask &= (converted_img[:, :, ch] >= lo) & (converted_img[:, :, ch] <= hi)
+                img_slice[~mask] = 0
+            else:
+                lower_ch, upper_ch = self.thresh_bounds
+                img_slice[(img_slice < lower_ch) | (img_slice > upper_ch)] = 0
         return img_slice
 
 
@@ -306,6 +316,7 @@ class MyWindow(pg.GraphicsLayoutWidget):
             self.cv_img, self.color_mode, self.ch_index,
             crop_bounds=self.roi_bounds,
             thresh_bounds=self.channel_thresholds if self.apply_thresh else None,
+            combined_thresh=self.apply_combined_thresh,
             subsample=subsample
         )
 
@@ -421,8 +432,16 @@ class MyWindow(pg.GraphicsLayoutWidget):
         self.general_settings_layout.addWidget(QtWidgets.QLabel('Apply Thresholding:'), 3, 0)
         self.general_settings_layout.addWidget(self.apply_thresh_box, 3, 1)
 
+        # Setup combined thresholding checkbox
+        self.apply_combined_thresh_box = QtWidgets.QCheckBox()
+        self.apply_combined_thresh_box.setChecked(self.apply_combined_thresh)
+        self.apply_combined_thresh_box.setEnabled(False)
+        self.apply_combined_thresh_box.toggled.connect(self.on_apply_combined_thresh_toggle)
+        self.general_settings_layout.addWidget(QtWidgets.QLabel('Combined Thresholding:'), 4, 0)
+        self.general_settings_layout.addWidget(self.apply_combined_thresh_box, 4, 1)
+
         # Setup thresholding sliders for all channels
-        thresh_row_offset = 4
+        thresh_row_offset = 5
         self.all_channel_thresh_sliders = []
         self.all_channel_labels = []
 
@@ -692,6 +711,9 @@ class MyWindow(pg.GraphicsLayoutWidget):
 
     def on_apply_thresh_toggle(self, should_apply_thresh):
         self.apply_thresh = should_apply_thresh
+        self.apply_combined_thresh_box.setEnabled(self.apply_thresh)
+        if not self.apply_thresh:
+            self.apply_combined_thresh_box.setChecked(False)
         for (i, channel_thresh_slider) in enumerate(self.all_channel_thresh_sliders):
             channel_thresh_slider.setEnabled(self.apply_thresh)
 
@@ -705,6 +727,11 @@ class MyWindow(pg.GraphicsLayoutWidget):
                 channel_thresh_slider.valueChanged.disconnect()
                 channel_thresh_slider.valueChangedFinished.disconnect()
 
+        self.update_all_plots()
+
+
+    def on_apply_combined_thresh_toggle(self, should_apply_combined_thresh):
+        self.apply_combined_thresh = should_apply_combined_thresh
         self.update_all_plots()
 
 
